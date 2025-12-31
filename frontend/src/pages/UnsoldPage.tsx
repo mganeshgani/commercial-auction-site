@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Player, Team } from '../types';
 import confetti from 'canvas-confetti';
+import { useAuth } from '../contexts/AuthContext';
+import { playerService, teamService } from '../services/api';
 
 const UnsoldPage: React.FC = () => {
+  const { isAuctioneer } = useAuth();
   const [unsoldPlayers, setUnsoldPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
@@ -13,13 +15,13 @@ const UnsoldPage: React.FC = () => {
   const [selectedTeam, setSelectedTeam] = useState<string>('');
 
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+  const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
 
   const fetchUnsoldPlayers = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/players`);
-      const unsold = response.data.filter((p: Player) => p.status === 'unsold');
-      setUnsoldPlayers(unsold);
+      const data = await playerService.getUnsoldPlayers();
+      setUnsoldPlayers(data);
     } catch (error) {
       console.error('Error fetching unsold players:', error);
     } finally {
@@ -29,8 +31,8 @@ const UnsoldPage: React.FC = () => {
 
   const fetchTeams = async () => {
     try {
-      const response = await axios.get(`${API_URL}/teams`);
-      setTeams(response.data);
+      const data = await teamService.getAllTeams();
+      setTeams(data);
     } catch (error) {
       console.error('Error fetching teams:', error);
     }
@@ -56,14 +58,14 @@ const UnsoldPage: React.FC = () => {
 
     try {
       // Update player with sold status, team, and amount
-      await axios.patch(`${API_URL}/players/${selectedPlayer._id}`, {
+      await playerService.updatePlayer(selectedPlayer._id, {
         status: 'sold',
         team: selectedTeam,
         soldAmount: soldAmount
       });
 
       // Add player to team and deduct amount
-      await axios.patch(`${API_URL}/teams/${selectedTeam}`, {
+      await teamService.patchTeam(selectedTeam, {
         $push: { players: selectedPlayer._id },
         soldAmount: soldAmount
       });
@@ -161,7 +163,7 @@ const UnsoldPage: React.FC = () => {
                 <div className="flex justify-center mb-3">
                   {player.photoUrl && player.photoUrl.trim() !== '' ? (
                     <img 
-                      src={player.photoUrl} 
+                      src={player.photoUrl.startsWith('http') ? player.photoUrl : `${BACKEND_URL}${player.photoUrl}`} 
                       alt={player.name}
                       crossOrigin="anonymous"
                       referrerPolicy="no-referrer"
@@ -203,13 +205,22 @@ const UnsoldPage: React.FC = () => {
                     <span className="text-xs font-bold text-white truncate ml-2">{player.position}</span>
                   </div>
 
-                  {/* Auction Button */}
+                  {/* Auction Button - Only for Auctioneers */}
+                  {isAuctioneer ? (
                   <button
                     onClick={() => handleAuctionClick(player)}
                     className="w-full mt-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 rounded-lg text-sm font-bold transition-all duration-300 hover:scale-105 shadow-lg flex items-center justify-center gap-2"
                   >
                     <span>Auction Now</span>
                   </button>
+                  ) : (
+                    <div className="w-full mt-2 px-4 py-2 rounded-lg text-center" style={{
+                      background: 'rgba(100, 100, 100, 0.2)',
+                      border: '1px solid rgba(150, 150, 150, 0.3)'
+                    }}>
+                      <p className="text-gray-400 text-xs">🔒 Viewer Mode</p>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -237,7 +248,7 @@ const UnsoldPage: React.FC = () => {
                 <div className="flex items-center gap-4">
                   {selectedPlayer.photoUrl && selectedPlayer.photoUrl.trim() !== '' ? (
                     <img 
-                      src={selectedPlayer.photoUrl} 
+                      src={selectedPlayer.photoUrl.startsWith('http') ? selectedPlayer.photoUrl : `${BACKEND_URL}${selectedPlayer.photoUrl}`} 
                       alt={selectedPlayer.name}
                       className="w-16 h-16 rounded-full object-cover border-2 border-emerald-500"
                       onError={(e) => {

@@ -1,23 +1,72 @@
 const Team = require('../models/team.model');
 const Player = require('../models/player.model');
+const cloudinary = require('../config/cloudinary');
 
 // Create new team
 exports.createTeam = async (req, res) => {
   try {
+    // Check if auctioneer has reached team limit
+    if (req.user.role === 'auctioneer' && req.user.limits && req.user.limits.maxTeams !== null) {
+      const currentTeamCount = await Team.countDocuments({ auctioneer: req.user._id });
+      if (currentTeamCount >= req.user.limits.maxTeams) {
+        return res.status(403).json({
+          error: `Team limit reached. Maximum allowed: ${req.user.limits.maxTeams}. Contact admin for upgrade.`
+        });
+      }
+    }
+
     const { name, totalSlots, budget } = req.body;
+    
+    // Upload logo to Cloudinary if provided
+    let logoUrl = '';
+    if (req.file) {
+      try {
+        const result = await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              folder: 'team-logos',
+              public_id: `team_${name}_${Date.now()}`,
+              resource_type: 'image',
+              transformation: [
+                { width: 300, height: 300, crop: 'limit' },
+                { quality: 'auto:low' },
+                { fetch_format: 'auto' }
+              ]
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          uploadStream.end(req.file.buffer);
+        });
+        logoUrl = result.secure_url;
+      } catch (uploadError) {
+        console.error('Error uploading logo:', uploadError);
+      }
+    }
     
     const team = new Team({
       name,
+      logoUrl,
       totalSlots,
       budget,
-      remainingBudget: budget
+      remainingBudget: budget,
+      auctioneer: req.user._id // Link team to auctioneer
     });
 
     await team.save();
+    
+    // Emit socket event only to this auctioneer's room
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`auctioneer_${req.user._id}`).emit('teamCreated', team);
+    }
+    
     res.status(201).json(team);
   } catch (error) {
     if (error.code === 11000) { // Duplicate key error
-      return res.status(400).json({ error: 'Team name already exists' });
+      return res.status(400).json({ error: 'Team name already exists in your auction' });
     }
     res.status(500).json({ error: 'Error creating team' });
   }
@@ -29,9 +78,10 @@ exports.updateTeam = async (req, res) => {
     const { teamId } = req.params;
     const updateData = req.body;
 
-    const team = await Team.findById(teamId);
+    // Verify team belongs to this auctioneer
+    const team = await Team.findOne({ _id: teamId, auctioneer: req.user._id });
     if (!team) {
-      return res.status(404).json({ error: 'Team not found' });
+      return res.status(404).json({ error: 'Team not found or access denied' });
     }
 
     // Handle MongoDB $push operation for adding players
@@ -46,10 +96,10 @@ exports.updateTeam = async (req, res) => {
       
       await team.save();
       
-      // Emit socket event for real-time updates
+      // Emit socket event for real-time updates (only to this auctioneer)
       const io = req.app.get('io');
       if (io) {
-        io.emit('teamUpdated', team);
+        io.to(`auctioneer_${req.user._id}`).emit('teamUpdated', team);
       }
       
       return res.json(team);
@@ -57,6 +107,34 @@ exports.updateTeam = async (req, res) => {
 
     // Regular update fields
     const { name, totalSlots, budget } = updateData;
+
+    // Upload new logo if provided
+    if (req.file) {
+      try {
+        const result = await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              folder: 'team-logos',
+              public_id: `team_${name || team.name}_${Date.now()}`,
+              resource_type: 'image',
+              transformation: [
+                { width: 300, height: 300, crop: 'limit' },
+                { quality: 'auto:low' },
+                { fetch_format: 'auto' }
+              ]
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          uploadStream.end(req.file.buffer);
+        });
+        team.logoUrl = result.secure_url;
+      } catch (uploadError) {
+        console.error('Error uploading logo:', uploadError);
+      }
+    }
 
     // Validate total slots
     if (totalSlots && totalSlots < team.filledSlots) {
@@ -76,16 +154,16 @@ exports.updateTeam = async (req, res) => {
 
     await team.save();
     
-    // Emit socket event for real-time updates
+    // Emit socket event for real-time updates (only to this auctioneer)
     const io = req.app.get('io');
     if (io) {
-      io.emit('teamUpdated', team);
+      io.to(`auctioneer_${req.user._id}`).emit('teamUpdated', team);
     }
     
     res.json(team);
   } catch (error) {
     if (error.code === 11000) {
-      return res.status(400).json({ error: 'Team name already exists' });
+      return res.status(400).json({ error: 'Team name already exists in your auction' });
     }
     res.status(500).json({ error: 'Error updating team' });
   }
@@ -95,10 +173,12 @@ exports.updateTeam = async (req, res) => {
 exports.deleteTeam = async (req, res) => {
   try {
     const { teamId } = req.params;
-    const team = await Team.findById(teamId);
+    
+    // Verify team belongs to this auctioneer
+    const team = await Team.findOne({ _id: teamId, auctioneer: req.user._id });
     
     if (!team) {
-      return res.status(404).json({ error: 'Team not found' });
+      return res.status(404).json({ error: 'Team not found or access denied' });
     }
 
     // Check if team has players
@@ -119,7 +199,8 @@ exports.deleteTeam = async (req, res) => {
 exports.getAllTeams = async (req, res) => {
   try {
     // OPTIMIZED: Only populate necessary fields, not full player objects
-    const teams = await Team.find()
+    // Filter by logged-in auctioneer
+    const teams = await Team.find({ auctioneer: req.user._id })
       .populate('players', 'name regNo class position soldAmount') // Only specific fields
       .lean(); // Return plain objects (faster)
     res.json(teams);
@@ -132,7 +213,11 @@ exports.getAllTeams = async (req, res) => {
 exports.getTeamById = async (req, res) => {
   try {
     const { teamId } = req.params;
-    const team = await Team.findById(teamId)
+    // Filter by logged-in auctioneer
+    const team = await Team.findOne({ 
+      _id: teamId,
+      auctioneer: req.user._id 
+    })
       .populate('players', 'name regNo class position soldAmount')
       .lean();
     
@@ -149,7 +234,8 @@ exports.getTeamById = async (req, res) => {
 // Get final results
 exports.getFinalResults = async (req, res) => {
   try {
-    const teams = await Team.find()
+    // Filter by logged-in auctioneer
+    const teams = await Team.find({ auctioneer: req.user._id })
       .populate('players', 'name regNo class position soldAmount')
       .sort('name')
       .lean();
@@ -178,12 +264,13 @@ exports.getFinalResults = async (req, res) => {
 // Delete all teams (for auction reset)
 exports.deleteAllTeams = async (req, res) => {
   try {
-    const result = await Team.deleteMany({});
+    // Only delete teams belonging to the logged-in auctioneer
+    const result = await Team.deleteMany({ auctioneer: req.user._id });
     
-    // Emit socket event for real-time updates
+    // Emit socket event for real-time updates (only to this auctioneer)
     const io = req.app.get('io');
     if (io) {
-      io.emit('dataReset');
+      io.to(`auctioneer_${req.user._id}`).emit('dataReset');
     }
     
     res.json({ 

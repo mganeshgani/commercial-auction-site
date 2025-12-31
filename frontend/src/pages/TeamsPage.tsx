@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Team } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 const TeamsPage: React.FC = () => {
+  const { isAuctioneer } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
     totalSlots: 11,
@@ -20,7 +25,10 @@ const TeamsPage: React.FC = () => {
   const fetchTeams = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/teams`);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/teams`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setTeams(response.data);
     } catch (error) {
       console.error('Error fetching teams:', error);
@@ -35,16 +43,31 @@ const TeamsPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      const submitData = new FormData();
+      submitData.append('name', formData.name);
+      submitData.append('totalSlots', formData.totalSlots.toString());
+      submitData.append('budget', formData.budget.toString());
+      if (logoFile) {
+        submitData.append('logo', logoFile);
+      }
+      
       if (editingTeam) {
-        await axios.patch(`${API_URL}/teams/${editingTeam._id}`, formData);
+        await axios.patch(`${API_URL}/teams/${editingTeam._id}`, submitData, { headers });
       } else {
-        await axios.post(`${API_URL}/teams`, formData);
+        await axios.post(`${API_URL}/teams`, submitData, { headers });
       }
       fetchTeams();
       resetForm();
     } catch (error) {
       console.error('Error saving team:', error);
+      alert('Error saving team. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -52,7 +75,10 @@ const TeamsPage: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this team?')) return;
     
     try {
-      await axios.delete(`${API_URL}/teams/${id}`);
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_URL}/teams/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       fetchTeams();
     } catch (error) {
       console.error('Error deleting team:', error);
@@ -61,6 +87,8 @@ const TeamsPage: React.FC = () => {
 
   const resetForm = () => {
     setFormData({ name: '', totalSlots: 11, budget: 100000 });
+    setLogoFile(null);
+    setLogoPreview('');
     setEditingTeam(null);
     setShowAddModal(false);
   };
@@ -72,20 +100,24 @@ const TeamsPage: React.FC = () => {
       totalSlots: team.totalSlots,
       budget: team.budget || 100000
     });
+    setLogoPreview(team.logoUrl || '');
+    setLogoFile(null);
     setShowAddModal(true);
   };
 
   const handleResetAuction = async () => {
     setResetting(true);
     try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
       console.log('Starting auction reset...');
       
       // Delete all players
-      const playersResponse = await axios.delete(`${API_URL}/players`);
+      const playersResponse = await axios.delete(`${API_URL}/players`, { headers });
       console.log('Players deleted:', playersResponse.data);
       
       // Delete all teams
-      const teamsResponse = await axios.delete(`${API_URL}/teams`);
+      const teamsResponse = await axios.delete(`${API_URL}/teams`, { headers });
       console.log('Teams deleted:', teamsResponse.data);
       
       // Refresh data
@@ -174,7 +206,9 @@ const TeamsPage: React.FC = () => {
             )}
           </div>
 
-          {/* Add Team Button */}
+          {/* Add Team Button - Only for Auctioneers */}
+          {isAuctioneer && (
+          <>
           <button
             onClick={() => setShowAddModal(true)}
             className="group px-5 py-2 rounded-lg font-bold text-sm transition-all duration-300 hover:scale-105 shadow-lg flex items-center gap-2"
@@ -200,6 +234,8 @@ const TeamsPage: React.FC = () => {
             </svg>
             <span>Reset</span>
           </button>
+          </>
+          )}
         </div>
       </div>
 
@@ -263,16 +299,30 @@ const TeamsPage: React.FC = () => {
                 >
                   {/* Team Header */}
                   <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="text-xl font-black tracking-tight" style={{
-                        background: 'linear-gradient(135deg, #FFFFFF 0%, #F0D770 50%, #D4AF37 100%)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        backgroundClip: 'text',
-                        textShadow: '0 2px 10px rgba(212, 175, 55, 0.3)'
-                      }}>{team.name}</h3>
-                      <p className="text-xs text-gray-500 font-medium mt-1">Team ID: {team._id.slice(-6)}</p>
+                    <div className="flex items-center gap-3">
+                      {/* Team Logo */}
+                      <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center" style={{
+                        background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(240, 215, 112, 0.2) 100%)',
+                        border: '2px solid rgba(212, 175, 55, 0.4)'
+                      }}>
+                        {team.logoUrl ? (
+                          <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-2xl font-bold text-amber-400">{team.name.charAt(0)}</span>
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black tracking-tight" style={{
+                          background: 'linear-gradient(135deg, #FFFFFF 0%, #F0D770 50%, #D4AF37 100%)',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          backgroundClip: 'text',
+                          textShadow: '0 2px 10px rgba(212, 175, 55, 0.3)'
+                        }}>{team.name}</h3>
+                        <p className="text-xs text-gray-500 font-medium mt-1">Team ID: {team._id.slice(-6)}</p>
+                      </div>
                     </div>
+                    {isAuctioneer && (
                     <div className="flex gap-2">
                       <button
                         onClick={() => openEditModal(team)}
@@ -293,6 +343,7 @@ const TeamsPage: React.FC = () => {
                         </svg>
                       </button>
                     </div>
+                    )}
                   </div>
 
                   {/* Stats Grid */}
@@ -432,6 +483,55 @@ const TeamsPage: React.FC = () => {
 
               {/* Modal Body */}
               <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                {/* Team Logo Upload */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-300 mb-2">
+                    Team Logo
+                  </label>
+                  <div className="flex items-center gap-4">
+                    {/* Logo Preview */}
+                    <div className="w-20 h-20 rounded-xl overflow-hidden flex items-center justify-center" style={{
+                      background: 'rgba(212, 175, 55, 0.1)',
+                      border: '2px solid rgba(212, 175, 55, 0.3)'
+                    }}>
+                      {logoPreview || (editingTeam?.logoUrl) ? (
+                        <img 
+                          src={logoPreview || editingTeam?.logoUrl} 
+                          alt="Team logo" 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <svg className="w-10 h-10 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      )}
+                    </div>
+                    {/* File Input */}
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*,.heic,.heif,.svg"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setLogoFile(file);
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setLogoPreview(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="w-full px-4 py-3 bg-gray-800/80 border rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gradient-to-r file:from-amber-500 file:to-amber-600 file:text-white hover:file:from-amber-600 hover:file:to-amber-700 file:cursor-pointer transition-all duration-300"
+                        style={{
+                          borderColor: 'rgba(212, 175, 55, 0.3)'
+                        }}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Optional: Upload team logo (All image formats supported: JPG, PNG, GIF, WebP, SVG, etc.)</p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Team Name Input */}
                 <div>
                   <label className="block text-sm font-bold text-gray-300 mb-2">
@@ -518,26 +618,38 @@ const TeamsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="flex-1 px-4 py-3 rounded-xl font-bold transition-all duration-300 hover:scale-105"
+                    disabled={submitting}
+                    className="flex-1 px-6 py-3 rounded-xl font-bold transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
-                      background: 'rgba(0, 0, 0, 0.5)',
-                      border: '1px solid rgba(212, 175, 55, 0.3)',
-                      color: 'white'
+                      background: 'rgba(107, 114, 128, 0.3)',
+                      border: '2px solid rgba(107, 114, 128, 0.5)',
+                      color: '#D1D5DB'
                     }}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-3 rounded-xl font-bold transition-all duration-300 hover:scale-105 shadow-lg"
+                    disabled={submitting}
+                    className="flex-1 px-6 py-3 rounded-xl font-bold transition-all duration-300 hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                     style={{
-                      background: 'linear-gradient(135deg, #D4AF37 0%, #F0D770 50%, #D4AF37 100%)',
+                      background: submitting ? 'rgba(212, 175, 55, 0.5)' : 'linear-gradient(135deg, #D4AF37 0%, #F0D770 50%, #D4AF37 100%)',
                       border: '2px solid rgba(212, 175, 55, 0.5)',
-                      boxShadow: '0 4px 20px rgba(212, 175, 55, 0.4)',
+                      boxShadow: submitting ? 'none' : '0 4px 20px rgba(212, 175, 55, 0.4)',
                       color: '#000000'
                     }}
                   >
-                    {editingTeam ? '✓ Update Team' : '✓ Create Team'}
+                    {submitting ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        {logoFile ? 'Uploading Logo...' : 'Saving...'}
+                      </span>
+                    ) : (
+                      editingTeam ? '💾 Save Changes' : '➕ Create Team'
+                    )}
                   </button>
                 </div>
               </form>

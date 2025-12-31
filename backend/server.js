@@ -43,22 +43,42 @@ const io = new Server(server, {
   transports: ['websocket', 'polling']
 });
 
-// Socket.io connection handling
+// Socket.io connection handling with auctioneer rooms
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
+
+  // Join auctioneer-specific room when authenticated
+  socket.on('joinAuctioneer', (auctioneerId) => {
+    const roomName = `auctioneer_${auctioneerId}`;
+    socket.join(roomName);
+    console.log(`Socket ${socket.id} joined room: ${roomName}`);
+  });
+
+  // Leave auctioneer room
+  socket.on('leaveAuctioneer', (auctioneerId) => {
+    const roomName = `auctioneer_${auctioneerId}`;
+    socket.leave(roomName);
+    console.log(`Socket ${socket.id} left room: ${roomName}`);
+  });
 
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
   });
 
+  // Bid events are now scoped to auctioneer rooms (sent from client with auctioneerId)
   socket.on('placeBid', (data) => {
     console.log('Bid placed:', data);
-    io.emit('bidPlaced', data);
+    if (data.auctioneerId) {
+      io.to(`auctioneer_${data.auctioneerId}`).emit('bidPlaced', data);
+    }
   });
 
+  // Auction start events are scoped to auctioneer rooms
   socket.on('startAuction', (data) => {
     console.log('Auction started:', data);
-    io.emit('auctionStarted', data);
+    if (data.auctioneerId) {
+      io.to(`auctioneer_${data.auctioneerId}`).emit('auctionStarted', data);
+    }
   });
 });
 
@@ -70,7 +90,7 @@ app.use(cors({
     // Check if origin matches any allowed pattern
     const isAllowed = allowedOrigins.some(allowedOrigin => {
       if (allowedOrigin.includes('*')) {
-        const pattern = new RegExp(allowedOrigin.replace('*', '.*'));
+        const pattern = new RegExp(allowedOrigin.replace('\\*', '.*'));
         return pattern.test(origin);
       }
       return allowedOrigin === origin;
@@ -79,15 +99,22 @@ app.use(cors({
     if (isAllowed) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.log('CORS blocked origin:', origin);
+      callback(null, true); // Allow all for development
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 }));
 
 app.use(express.json());
 
+// Cookie parser middleware
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+
 // MongoDB Connection
+const path = require('path');
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -95,9 +122,15 @@ mongoose.connect(process.env.MONGODB_URI, {
 .then(() => console.log('Connected to MongoDB Atlas'))
 .catch((err) => console.error('MongoDB connection error:', err));
 
+// Make io accessible to routes
+app.set('io', io);
+
 // Import Routes
 const playerRoutes = require('./routes/player.routes');
 const teamRoutes = require('./routes/team.routes');
+const authRoutes = require('./routes/auth.routes');
+const formConfigRoutes = require('./routes/formConfig.routes');
+const adminRoutes = require('./routes/admin.routes');
 
 // Routes
 app.get('/', (req, res) => {
@@ -106,6 +139,9 @@ app.get('/', (req, res) => {
 
 app.use('/api/players', playerRoutes);
 app.use('/api/teams', teamRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/form-config', formConfigRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

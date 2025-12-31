@@ -1,33 +1,34 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const playerController = require('../controllers/player.controller');
+const { protect } = require('../middleware/auth.middleware');
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Configure multer for file upload
-const upload = multer({ 
-  dest: uploadsDir,
+// Configure multer for photo upload (memory storage for Cloudinary)
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit (for HEIC files)
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+    const allowedTypes = /jpeg|jpg|png|gif|webp|heic|heif/i;
+    const extname = allowedTypes.test(file.originalname.split('.').pop().toLowerCase());
+    // Accept common image mimetypes including mobile formats
+    const mimetype = file.mimetype.startsWith('image/');
+    
+    if (mimetype && extname) {
       cb(null, true);
     } else {
-      cb(new Error('Only CSV files are allowed'));
+      cb(new Error('Only image files (JPEG, JPG, PNG, GIF, WebP, HEIC) are allowed'));
     }
   }
 });
 
-// Upload players from CSV
-router.post('/upload', upload.single('file'), playerController.uploadPlayers);
+// Player registration with photo upload (public - uses token validation)
+router.post('/register', photoUpload.single('photo'), playerController.registerPlayer);
+
+// Protected routes - require authentication
+router.use(protect);
 
 // Get random unsold player (must be before /:playerId)
 router.get('/random', playerController.getRandomPlayer);
@@ -41,6 +42,9 @@ router.delete('/', playerController.deleteAllPlayers);
 // Get all players
 router.get('/', playerController.getAllPlayers);
 
+// Create player from admin panel (must be before /:playerId)
+router.post('/', photoUpload.single('photo'), playerController.createPlayer);
+
 // Assign player to team
 router.post('/:playerId/assign', playerController.assignPlayer);
 
@@ -53,5 +57,8 @@ router.delete('/:playerId/remove-from-team', playerController.removePlayerFromTe
 // Update player (PATCH and PUT for compatibility)
 router.patch('/:playerId', playerController.updatePlayer);
 router.put('/:playerId', playerController.updatePlayer);
+
+// Delete single player
+router.delete('/:playerId', playerController.deletePlayer);
 
 module.exports = router;

@@ -4,8 +4,11 @@ const teamSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
-    unique: true,
     trim: true
+  },
+  logoUrl: {
+    type: String,
+    default: ''
   },
   totalSlots: {
     type: Number,
@@ -28,14 +31,22 @@ const teamSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Player'
   }],
+  auctioneer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
 
-// Index for faster queries
-teamSchema.index({ name: 1 });
+// Compound index: team names must be unique per auctioneer (not globally)
+teamSchema.index({ name: 1, auctioneer: 1 }, { unique: true });
+// Index for faster auctioneer-based queries
+teamSchema.index({ auctioneer: 1 });
 
 // Virtual for available slots
 teamSchema.virtual('availableSlots').get(function() {

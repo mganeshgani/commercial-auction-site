@@ -14,6 +14,7 @@ interface PlayerCardProps {
   handleSoldClick: () => void;
   handleUnsoldClick: () => void;
   loading: boolean;
+  isAuctioneer?: boolean;
 }
 
 const getPositionColor = (position: string) => {
@@ -32,8 +33,10 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
   handleSoldClick,
   handleUnsoldClick,
   loading,
+  isAuctioneer = true,
 }) => {
   const positionColors = getPositionColor(player.position);
+  const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
 
   return (
     <div className="premium-player-card-wrapper">
@@ -293,7 +296,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
               </div>
               <div className="relative">
                 <img
-                  src={player.photoUrl || '/default-avatar.png'}
+                  src={player.photoUrl ? (player.photoUrl.startsWith('http') ? player.photoUrl : `${BACKEND_URL}${player.photoUrl}`) : '/default-avatar.png'}
                   alt={player.name}
                   className="w-56 h-56 rounded-full object-cover border-4 border-slate-800"
                   style={{ boxShadow: `0 0 40px ${positionColors.light}` }}
@@ -358,6 +361,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             </div>
 
             {/* Ultra Premium Action Buttons - Designer Edition */}
+            {isAuctioneer ? (
             <div className="flex gap-6 flex-col sm:flex-row">
               {/* SOLD Button - Sophisticated Gold & Deep Green Luxury */}
               <button
@@ -453,6 +457,16 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                 </span>
               </button>
             </div>
+            ) : (
+              <div className="mt-6 px-6 py-4 rounded-lg text-center" style={{
+                background: 'rgba(100, 100, 100, 0.2)',
+                border: '1px solid rgba(150, 150, 150, 0.3)'
+              }}>
+                <p className="text-gray-400 text-sm">
+                  🔒 Viewer Mode - You can watch but cannot place bids
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

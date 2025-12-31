@@ -14,6 +14,7 @@ export interface Player {
 export interface Team {
   _id: string;
   name: string;
+  logoUrl?: string;
   totalSlots: number;
   filledSlots: number;
   budget: number | null;

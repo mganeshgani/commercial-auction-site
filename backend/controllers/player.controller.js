@@ -1,160 +1,143 @@
 const Player = require('../models/player.model');
 const Team = require('../models/team.model');
-const { parse } = require('csv-parse');
-const fs = require('fs');
+const User = require('../models/user.model');
+const cloudinary = require('../config/cloudinary');
 
-// Upload players from CSV
-exports.uploadPlayers = async (req, res) => {
+// Register a new player with photo (via registration link)
+exports.registerPlayer = async (req, res) => {
   try {
-    console.log('Upload request received');
-    console.log('File:', req.file);
-    console.log('Headers:', req.headers);
-    
-    if (!req.file) {
-      console.error('No file in request');
-      return res.status(400).json({ error: 'No CSV file uploaded' });
+    const { name, regNo, token, ...customFieldsData } = req.body;
+
+    // Validate required fields
+    if (!name || !token) {
+      return res.status(400).json({ 
+        error: 'Name and token are required' 
+      });
     }
 
-    console.log('Processing CSV file:', req.file.originalname);
-    const results = [];
-    
-    fs.createReadStream(req.file.path)
-      .pipe(parse({ columns: true, trim: true, skip_empty_lines: true }))
-      .on('data', (data) => {
-        console.log('CSV row:', data);
-        
-        // Map CSV columns to database fields
-        let photoUrl = data['Photo'] || data.photoUrl || '';
-        
-        // Convert Google Drive share link to direct image URL
-        if (photoUrl && photoUrl.includes('drive.google.com')) {
-          // Extract file ID from various Google Drive URL formats:
-          // https://drive.google.com/file/d/FILE_ID/view?usp=sharing
-          // https://drive.google.com/open?id=FILE_ID
-          // https://drive.google.com/uc?id=FILE_ID
-          let fileId = null;
-          
-          if (photoUrl.includes('/file/d/')) {
-            fileId = photoUrl.split('/file/d/')[1].split('/')[0];
-          } else if (photoUrl.includes('id=')) {
-            fileId = photoUrl.split('id=')[1].split('&')[0];
-          }
-          
-          if (fileId) {
-            // Convert to direct download URL
-            photoUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-            console.log('Converted Google Drive URL:', photoUrl);
-          }
-        }
-        
-        const player = {
-          name: data['Player Name'] || data.name || '',
-          regNo: data['Registration Number'] || data.regNo || '',
-          class: data['Class'] || data.class || '',
-          position: data['Position'] || data.position || '',
-          photoUrl: photoUrl,
-          status: 'available'
-        };
-        
-        // Keep the photoUrl as-is (will be served from /public folder in React)
-        // If empty, leave empty for initials fallback
-        if (!player.photoUrl) {
-          player.photoUrl = '';
-        }
-        
-        results.push(player);
-      })
-      .on('end', async () => {
-        try {
-          console.log('CSV parsing complete. Total rows:', results.length);
-          
-          if (results.length === 0) {
-            fs.unlinkSync(req.file.path);
-            return res.status(400).json({ error: 'CSV file is empty or has no valid data' });
-          }
-          
-          // Validate required fields
-          const requiredFields = ['name', 'regNo', 'class', 'position'];
-          const missingFields = [];
-          
-          results.forEach((row, index) => {
-            requiredFields.forEach(field => {
-              if (!row[field] || (typeof row[field] === 'string' && row[field].trim() === '')) {
-                missingFields.push(`Row ${index + 2}: missing '${field}'`); // +2 because row 1 is header, index starts at 0
-              }
-            });
-          });
-          
-          if (missingFields.length > 0) {
-            fs.unlinkSync(req.file.path);
-            return res.status(400).json({ 
-              error: 'CSV validation failed',
-              details: 'Missing required fields. ' + missingFields.slice(0, 5).join(', ') + (missingFields.length > 5 ? `... and ${missingFields.length - 5} more` : '')
-            });
-          }
-          
-          console.log('Attempting to insert players:', results.length);
-          const players = await Player.insertMany(results, { ordered: false });
-          console.log('Players inserted:', players.length);
-          
-          // Delete the temporary file
-          fs.unlinkSync(req.file.path);
-          
-          res.json({ 
-            message: 'Players uploaded successfully', 
-            count: players.length 
-          });
-        } catch (error) {
-          console.error('Error inserting players:', error);
-          // Clean up file even on error
-          if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-          }
-          
-          // Handle duplicate key error
-          if (error.code === 11000) {
-            return res.status(400).json({ 
-              error: 'Duplicate player registration number found',
-              details: 'One or more players with the same regNo already exist in the database'
-            });
-          }
-          
-          res.status(400).json({ 
-            error: 'Invalid CSV format or data',
-            details: error.message 
-          });
-        }
-      })
-      .on('error', (error) => {
-        console.error('CSV parsing error:', error);
-        // Clean up file on error
-        if (req.file && fs.existsSync(req.file.path)) {
-          fs.unlinkSync(req.file.path);
-        }
-        res.status(400).json({ 
-          error: 'Error parsing CSV file',
-          details: error.message 
-        });
+    // Find auctioneer by registration token
+    const auctioneer = await User.findOne({ registrationToken: token });
+    if (!auctioneer) {
+      return res.status(400).json({ 
+        error: 'Invalid registration link. Please contact the organizer.' 
       });
-  } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ 
-      error: 'Error uploading players',
-      details: error.message 
+    }
+
+    // Check if registration number already exists for this auctioneer (only if provided)
+    if (regNo) {
+      const existingPlayer = await Player.findOne({ 
+        regNo, 
+        auctioneer: auctioneer._id 
+      });
+      
+      if (existingPlayer) {
+        return res.status(400).json({ 
+          error: 'A player with this registration number already exists for this auction' 
+        });
+      }
+    }
+
+    // Upload photo to Cloudinary
+    let photoUrl = '';
+    if (req.file) {
+      try {
+        // Upload buffer to Cloudinary
+        const result = await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              folder: 'auction-players',
+              public_id: `player_${regNo}_${Date.now()}`,
+              resource_type: 'image',
+              transformation: [
+                { width: 800, height: 800, crop: 'limit' },
+                { quality: 'auto' },
+                { fetch_format: 'auto' }
+              ]
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          uploadStream.end(req.file.buffer);
+        });
+        
+        photoUrl = result.secure_url;
+        console.log('✓ Photo uploaded to Cloudinary:', photoUrl);
+      } catch (uploadError) {
+        console.error('❌ Cloudinary upload error:', uploadError);
+        return res.status(400).json({ 
+          error: 'Failed to upload photo. Please try again.' 
+        });
+      }
+    }
+
+    // Separate core fields from custom fields
+    const { class: playerClass, position } = customFieldsData;
+    
+    // Build custom fields map (exclude core fields)
+    const customFields = new Map();
+    Object.keys(customFieldsData).forEach(key => {
+      if (!['class', 'position', 'photo'].includes(key)) {
+        customFields.set(key, customFieldsData[key]);
+      }
     });
+
+    // Auto-generate regNo if not provided
+    let finalRegNo = regNo;
+    if (!finalRegNo) {
+      const playerCount = await Player.countDocuments({ auctioneer: auctioneer._id });
+      finalRegNo = `P${String(playerCount + 1).padStart(4, '0')}`; // P0001, P0002, etc.
+    }
+
+    // Create new player linked to auctioneer
+    const player = new Player({
+      name,
+      regNo: finalRegNo,
+      class: playerClass || 'N/A',
+      position: position || 'N/A',
+      photoUrl,
+      customFields,
+      status: 'available',
+      auctioneer: auctioneer._id
+    });
+
+    await player.save();
+
+    // Emit socket event for real-time updates (only to this auctioneer's room)
+    if (req.app.get('io')) {
+      req.app.get('io').to(`auctioneer_${auctioneer._id}`).emit('playerAdded', player);
+    }
+
+    res.status(201).json({
+      message: 'Player registered successfully',
+      player,
+      auctioneerName: auctioneer.name
+    });
+
+  } catch (error) {
+    console.error('Error registering player:', error);
+    res.status(500).json({ error: 'Error registering player: ' + error.message });
   }
 };
 
 // Get random unsold player
 exports.getRandomPlayer = async (req, res) => {
   try {
-    const count = await Player.countDocuments({ status: 'available' });
+    // Filter by logged-in auctioneer
+    const count = await Player.countDocuments({ 
+      status: 'available',
+      auctioneer: req.user._id 
+    });
     if (count === 0) {
       return res.status(404).json({ message: 'No available players found' });
     }
 
     const random = Math.floor(Math.random() * count);
-    const player = await Player.findOne({ status: 'available' }).skip(random);
+    const player = await Player.findOne({ 
+      status: 'available',
+      auctioneer: req.user._id 
+    }).skip(random);
     res.json(player);
   } catch (error) {
     res.status(500).json({ error: 'Error fetching random player' });
@@ -166,14 +149,16 @@ exports.assignPlayer = async (req, res) => {
   try {
     const { playerId, teamId, amount } = req.body;
     
-    const player = await Player.findById(playerId);
+    // Verify player belongs to this auctioneer
+    const player = await Player.findOne({ _id: playerId, auctioneer: req.user._id });
     if (!player) {
-      return res.status(404).json({ error: 'Player not found' });
+      return res.status(404).json({ error: 'Player not found or access denied' });
     }
 
-    const team = await Team.findById(teamId);
+    // Verify team belongs to this auctioneer
+    const team = await Team.findOne({ _id: teamId, auctioneer: req.user._id });
     if (!team) {
-      return res.status(404).json({ error: 'Team not found' });
+      return res.status(404).json({ error: 'Team not found or access denied' });
     }
 
     // Check if team has available slots
@@ -200,6 +185,13 @@ exports.assignPlayer = async (req, res) => {
     }
     await team.save();
 
+    // Emit socket events only to this auctioneer's room
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`auctioneer_${req.user._id}`).emit('playerSold', player);
+      io.to(`auctioneer_${req.user._id}`).emit('teamUpdated', team);
+    }
+
     res.json({ message: 'Player assigned successfully', player, team });
   } catch (error) {
     res.status(500).json({ error: 'Error assigning player' });
@@ -210,20 +202,22 @@ exports.assignPlayer = async (req, res) => {
 exports.markUnsold = async (req, res) => {
   try {
     const { playerId } = req.params;
-    const player = await Player.findById(playerId);
+    
+    // Verify player belongs to this auctioneer
+    const player = await Player.findOne({ _id: playerId, auctioneer: req.user._id });
     
     if (!player) {
-      return res.status(404).json({ error: 'Player not found' });
+      return res.status(404).json({ error: 'Player not found or access denied' });
     }
 
     player.status = 'unsold';
     await player.save();
 
-    // Emit socket event for real-time updates
+    // Emit socket event for real-time updates (only to this auctioneer)
     const io = req.app.get('io');
     if (io) {
-      io.emit('playerMarkedUnsold', player);
-      io.emit('playerUpdated', player);
+      io.to(`auctioneer_${req.user._id}`).emit('playerMarkedUnsold', player);
+      io.to(`auctioneer_${req.user._id}`).emit('playerUpdated', player);
     }
 
     res.json({ message: 'Player marked as unsold', player });
@@ -235,7 +229,11 @@ exports.markUnsold = async (req, res) => {
 // Get all unsold players
 exports.getUnsoldPlayers = async (req, res) => {
   try {
-    const players = await Player.find({ status: 'unsold' });
+    // Filter by logged-in auctioneer
+    const players = await Player.find({ 
+      status: 'unsold',
+      auctioneer: req.user._id 
+    });
     res.json(players);
   } catch (error) {
     res.status(500).json({ error: 'Error fetching unsold players' });
@@ -245,7 +243,8 @@ exports.getUnsoldPlayers = async (req, res) => {
 // Get all players
 exports.getAllPlayers = async (req, res) => {
   try {
-    const players = await Player.find().populate('team', 'name');
+    // Filter players by the logged-in auctioneer
+    const players = await Player.find({ auctioneer: req.user._id }).populate('team', 'name');
     res.json(players);
   } catch (error) {
     res.status(500).json({ error: 'Error fetching players' });
@@ -255,12 +254,13 @@ exports.getAllPlayers = async (req, res) => {
 // Delete all players (for auction reset)
 exports.deleteAllPlayers = async (req, res) => {
   try {
-    const result = await Player.deleteMany({});
+    // Only delete players belonging to the logged-in auctioneer
+    const result = await Player.deleteMany({ auctioneer: req.user._id });
     
-    // Emit socket event for real-time updates
+    // Emit socket event for real-time updates (only to this auctioneer)
     const io = req.app.get('io');
     if (io) {
-      io.emit('dataReset');
+      io.to(`auctioneer_${req.user._id}`).emit('dataReset');
     }
     
     res.json({ 
@@ -276,10 +276,12 @@ exports.deleteAllPlayers = async (req, res) => {
 exports.removePlayerFromTeam = async (req, res) => {
   try {
     const { playerId } = req.params;
-    const player = await Player.findById(playerId);
+    
+    // Verify player belongs to this auctioneer
+    const player = await Player.findOne({ _id: playerId, auctioneer: req.user._id });
     
     if (!player) {
-      return res.status(404).json({ error: 'Player not found' });
+      return res.status(404).json({ error: 'Player not found or access denied' });
     }
 
     if (!player.team || player.status !== 'sold') {
@@ -289,8 +291,8 @@ exports.removePlayerFromTeam = async (req, res) => {
     const teamId = player.team;
     const soldAmount = player.soldAmount || 0;
 
-    // Find and update the team
-    const team = await Team.findById(teamId);
+    // Find and update the team (verify it belongs to this auctioneer)
+    const team = await Team.findOne({ _id: teamId, auctioneer: req.user._id });
     if (team) {
       // Remove player from team's players array
       team.players = team.players.filter(p => String(p) !== String(playerId));
@@ -301,10 +303,10 @@ exports.removePlayerFromTeam = async (req, res) => {
       
       await team.save();
       
-      // Emit socket event for team update
+      // Emit socket event for team update (only to this auctioneer)
       const io = req.app.get('io');
       if (io) {
-        io.emit('teamUpdated', team);
+        io.to(`auctioneer_${req.user._id}`).emit('teamUpdated', team);
       }
     }
 
@@ -314,11 +316,11 @@ exports.removePlayerFromTeam = async (req, res) => {
     player.soldAmount = null;
     await player.save();
 
-    // Emit socket events for real-time updates
+    // Emit socket events for real-time updates (only to this auctioneer)
     const io = req.app.get('io');
     if (io) {
-      io.emit('playerUpdated', player);
-      io.emit('playerRemovedFromTeam', { player, team });
+      io.to(`auctioneer_${req.user._id}`).emit('playerUpdated', player);
+      io.to(`auctioneer_${req.user._id}`).emit('playerRemovedFromTeam', { player, team });
     }
 
     res.json({ 
@@ -338,9 +340,10 @@ exports.updatePlayer = async (req, res) => {
     const { playerId } = req.params;
     const updateData = req.body;
 
-    const player = await Player.findById(playerId);
+    // Verify player belongs to this auctioneer
+    const player = await Player.findOne({ _id: playerId, auctioneer: req.user._id });
     if (!player) {
-      return res.status(404).json({ error: 'Player not found' });
+      return res.status(404).json({ error: 'Player not found or access denied' });
     }
 
     // Update player fields
@@ -356,20 +359,184 @@ exports.updatePlayer = async (req, res) => {
 
     await player.save();
     
-    // Emit socket event for real-time updates
+    // Emit socket event for real-time updates (only to this auctioneer)
     const io = req.app.get('io');
     if (io) {
-      io.emit('playerUpdated', player);
+      io.to(`auctioneer_${req.user._id}`).emit('playerUpdated', player);
       if (updateData.status === 'unsold') {
-        io.emit('playerMarkedUnsold', player);
+        io.to(`auctioneer_${req.user._id}`).emit('playerMarkedUnsold', player);
       }
       if (updateData.status === 'sold') {
-        io.emit('playerSold', player);
+        io.to(`auctioneer_${req.user._id}`).emit('playerSold', player);
       }
     }
     
     res.json(player);
   } catch (error) {
     res.status(500).json({ error: 'Error updating player' });
+  }
+};
+
+// Delete single player
+exports.deletePlayer = async (req, res) => {
+  try {
+    const { playerId } = req.params;
+
+    // Verify player belongs to this auctioneer
+    const player = await Player.findOne({ _id: playerId, auctioneer: req.user._id });
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found or access denied' });
+    }
+
+    // If player is assigned to a team, remove them from the team
+    if (player.team && player.status === 'sold') {
+      const teamId = player.team;
+      const soldAmount = player.soldAmount || 0;
+
+      const team = await Team.findOne({ _id: teamId, auctioneer: req.user._id });
+      if (team) {
+        // Remove player from team's players array
+        team.players = team.players.filter(p => String(p) !== String(playerId));
+        team.filledSlots = team.players.length;
+        
+        // Refund the sold amount to team's budget
+        team.remainingBudget = (team.remainingBudget || 0) + soldAmount;
+        
+        await team.save();
+        
+        // Emit socket event for team update
+        const io = req.app.get('io');
+        if (io) {
+          io.to(`auctioneer_${req.user._id}`).emit('teamUpdated', team);
+        }
+      }
+    }
+
+    // Delete the player
+    await Player.deleteOne({ _id: playerId });
+
+    // Emit socket event for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`auctioneer_${req.user._id}`).emit('playerDeleted', { playerId });
+    }
+
+    res.json({ message: 'Player deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting player:', error);
+    res.status(500).json({ error: 'Error deleting player' });
+  }
+};
+
+// Create player from admin panel
+exports.createPlayer = async (req, res) => {
+  try {
+    // Check if auctioneer has reached player limit
+    if (req.user.role === 'auctioneer' && req.user.limits && req.user.limits.maxPlayers !== null) {
+      const currentPlayerCount = await Player.countDocuments({ auctioneer: req.user._id });
+      if (currentPlayerCount >= req.user.limits.maxPlayers) {
+        return res.status(403).json({
+          error: `Player limit reached. Maximum allowed: ${req.user.limits.maxPlayers}. Contact admin for upgrade.`
+        });
+      }
+    }
+
+    const { name, regNo, class: playerClass, position } = req.body;
+
+    console.log('Creating player:', { name, regNo, playerClass, position, hasFile: !!req.file });
+
+    // Validate required fields
+    if (!name || !playerClass || !position) {
+      return res.status(400).json({ 
+        error: 'Name, class, and position are required' 
+      });
+    }
+
+    // Check if registration number already exists for this auctioneer (only if provided)
+    if (regNo) {
+      const existingPlayer = await Player.findOne({ 
+        regNo, 
+        auctioneer: req.user._id 
+      });
+      
+      if (existingPlayer) {
+        return res.status(400).json({ 
+          error: 'A player with this registration number already exists' 
+        });
+      }
+    }
+
+    // Auto-generate regNo if not provided
+    let finalRegNo = regNo;
+    if (!finalRegNo) {
+      const playerCount = await Player.countDocuments({ auctioneer: req.user._id });
+      finalRegNo = `P${String(playerCount + 1).padStart(4, '0')}`; // P0001, P0002, etc.
+    }
+
+    // Upload photo to Cloudinary if provided
+    let photoUrl = '';
+    if (req.file) {
+      try {
+        const result = await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              folder: 'auction-players',
+              public_id: `player_${finalRegNo}_${Date.now()}`,
+              resource_type: 'image',
+              eager: [
+                { width: 800, height: 800, crop: 'limit', quality: 'auto:best', fetch_format: 'auto' }
+              ],
+              eager_async: true, // Process transformations asynchronously
+              overwrite: true,
+              invalidate: true
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          uploadStream.end(req.file.buffer);
+        });
+        
+        photoUrl = result.secure_url;
+        console.log('Photo uploaded:', photoUrl);
+      } catch (uploadError) {
+        console.error('Error uploading photo:', uploadError);
+        return res.status(400).json({ 
+          error: 'Failed to upload photo. Please try again.' 
+        });
+      }
+    } else {
+      // Use a default placeholder if no photo provided
+      photoUrl = 'https://via.placeholder.com/400x400?text=' + encodeURIComponent(name.charAt(0));
+    }
+
+    // Create new player
+    const player = new Player({
+      name,
+      regNo: finalRegNo,
+      class: playerClass,
+      position,
+      photoUrl,
+      auctioneer: req.user._id,
+      status: 'available'
+    });
+
+    // Save player and upload photo in parallel
+    const savePromise = player.save();
+    
+    // Emit socket event immediately for real-time updates (optimistic)
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`auctioneer_${req.user._id}`).emit('playerAdded', player);
+    }
+
+    await savePromise;
+    console.log('Player created successfully:', player._id);
+
+    res.status(201).json(player);
+  } catch (error) {
+    console.error('Error creating player:', error);
+    res.status(500).json({ error: error.message || 'Error creating player' });
   }
 };

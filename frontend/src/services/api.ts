@@ -10,6 +10,20 @@ const api = axios.create({
   },
 });
 
+// Add request interceptor to include auth token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 export const playerService = {
   uploadPlayers: async (file: File) => {
     const formData = new FormData();
@@ -44,6 +58,11 @@ export const playerService = {
     const response = await api.get<Player[]>('/players');
     return response.data;
   },
+
+  updatePlayer: async (playerId: string, data: Partial<Player>) => {
+    const response = await api.patch<Player>(`/players/${playerId}`, data);
+    return response.data;
+  },
 };
 
 export const teamService = {
@@ -54,6 +73,11 @@ export const teamService = {
 
   updateTeam: async (teamId: string, data: Partial<Team>) => {
     const response = await api.put<Team>(`/teams/${teamId}`, data);
+    return response.data;
+  },
+
+  patchTeam: async (teamId: string, data: any) => {
+    const response = await api.patch(`/teams/${teamId}`, data);
     return response.data;
   },
 

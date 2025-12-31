@@ -69,9 +69,14 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, compact = false }) => {
               fontWeight: 800,
               fontSize: '0.75rem',
               color: '#0E0E12',
-              boxShadow: '0 0 20px rgba(176, 139, 79, 0.4)'
+              boxShadow: '0 0 20px rgba(176, 139, 79, 0.4)',
+              overflow: 'hidden'
             }}>
-              {team.name.charAt(0).toUpperCase()}
+              {team.logoUrl ? (
+                <img src={team.logoUrl} alt={team.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                team.name.charAt(0).toUpperCase()
+              )}
             </div>
             <h3 style={{
               fontFamily: "'Montserrat', sans-serif",
@@ -237,9 +242,14 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, compact = false }) => {
               color: '#000000',
               boxShadow: '0 0 30px rgba(212, 175, 55, 0.5), inset 0 2px 10px rgba(255, 255, 255, 0.2)',
               transform: 'scale(1)',
-              transition: 'transform 300ms'
+              transition: 'transform 300ms',
+              overflow: 'hidden'
             }} className="group-hover:scale-110">
-              {team.name.charAt(0).toUpperCase()}
+              {team.logoUrl ? (
+                <img src={team.logoUrl} alt={team.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                team.name.charAt(0).toUpperCase()
+              )}
             </div>
             <div className="flex-1">
               <h3 style={{

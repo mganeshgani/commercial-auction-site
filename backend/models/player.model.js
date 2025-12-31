@@ -8,8 +8,8 @@ const playerSchema = new mongoose.Schema({
   },
   regNo: {
     type: String,
-    required: true,
-    unique: true,
+    required: false,
+    unique: false,
     trim: true
   },
   class: {
@@ -39,6 +39,17 @@ const playerSchema = new mongoose.Schema({
   soldAmount: {
     type: Number,
     default: 0
+  },
+  auctioneer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false, // Optional for backward compatibility
+    index: true
+  },
+  customFields: {
+    type: Map,
+    of: mongoose.Schema.Types.Mixed,
+    default: new Map()
   },
   createdAt: {
     type: Date,

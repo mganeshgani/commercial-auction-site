@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Team, Player } from '../types';
-import { CSVLink } from 'react-csv';
-import io from 'socket.io-client';
+import { initializeSocket } from '../services/socket';
+import { useAuth } from '../contexts/AuthContext';
 
 const ResultsPage: React.FC = () => {
+  const { isAuctioneer } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,11 +21,13 @@ const ResultsPage: React.FC = () => {
   });
 
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
-  const SOCKET_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
 
   const handleDeletePlayer = async (player: Player) => {
     try {
-      await axios.delete(`${API_URL}/players/${player._id}/remove-from-team`);
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_URL}/players/${player._id}/remove-from-team`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setPlayerToDelete(null);
       setSelectedTeam(null);
       fetchData();
@@ -41,11 +44,14 @@ const ResultsPage: React.FC = () => {
     }
 
     try {
+      const token = localStorage.getItem('token');
       // Update player with new team
       await axios.put(`${API_URL}/players/${playerToChangeTeam._id}`, {
         team: newTeamId,
         status: 'sold',
         soldAmount: playerToChangeTeam.soldAmount
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       
       setPlayerToChangeTeam(null);
@@ -62,9 +68,11 @@ const ResultsPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     try {
       console.log('📊 Fetching latest teams and players data...');
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
       const [teamsRes, playersRes] = await Promise.all([
-        axios.get(`${API_URL}/teams`),
-        axios.get(`${API_URL}/players`)
+        axios.get(`${API_URL}/teams`, { headers }),
+        axios.get(`${API_URL}/players`, { headers })
       ]);
       
       console.log('✅ Teams fetched:', teamsRes.data.length);
@@ -99,11 +107,11 @@ const ResultsPage: React.FC = () => {
   useEffect(() => {
     fetchData();
     
-    // Setup Socket.io connection for real-time updates
-    const socket = io(SOCKET_URL);
+    // Setup Socket.io connection for real-time updates with auctioneer isolation
+    const socket = initializeSocket();
 
     socket.on('connect', () => {
-      console.log('✓ Results page connected to Socket.io');
+      console.log('✓ Results page connected to isolated socket room');
     });
 
     // OPTIMIZED: Debounce rapid socket events to prevent fetch spam
@@ -134,47 +142,7 @@ const ResultsPage: React.FC = () => {
       if (fetchTimeout) clearTimeout(fetchTimeout);
       socket.disconnect();
     };
-  }, [fetchData, SOCKET_URL]);
-
-  const csvHeaders = [
-    { label: 'Player Name', key: 'name' },
-    { label: 'Class', key: 'class' },
-    { label: 'Position', key: 'position' },
-    { label: 'Status', key: 'status' },
-    { label: 'Team', key: 'teamName' },
-    { label: 'Sold Amount', key: 'soldAmount' }
-  ];
-
-  const csvData = players.map(p => {
-    // Find team name with proper handling of populated team objects
-    let teamName = 'Unsold';
-    
-    if (p.team && p.status === 'sold') {
-      // Backend populates team with .populate('team', 'name') which returns { _id, name }
-      // Handle both populated object and string ID
-      const teamId = typeof p.team === 'object' ? (p.team as any)._id : p.team;
-      const teamNameFromPopulate = typeof p.team === 'object' ? (p.team as any).name : null;
-      
-      // If team is already populated with name, use it directly
-      if (teamNameFromPopulate) {
-        teamName = teamNameFromPopulate;
-      } else {
-        // Otherwise, find team in teams array
-        const foundTeam = teams.find(t => String(t._id).trim() === String(teamId).trim());
-        teamName = foundTeam?.name || 'Unknown Team';
-      }
-    } else if (p.status === 'unsold') {
-      teamName = 'Unsold';
-    } else if (p.status === 'available') {
-      teamName = 'Not Yet Auctioned';
-    }
-    
-    return {
-      ...p,
-      teamName,
-      soldAmount: p.soldAmount || 0
-    };
-  });
+  }, [fetchData]);
 
   // Position color mapping based on color theory
   const getPositionColor = (position: string) => {
@@ -277,28 +245,6 @@ const ResultsPage: React.FC = () => {
                 </div>
               </div>
             )}
-
-            {/* Right: Export Button - Responsive */}
-            <div className="flex items-center gap-2 flex-shrink-0 self-start lg:self-auto">
-              <CSVLink
-                data={csvData}
-                headers={csvHeaders}
-                filename={`auction_results_${new Date().toISOString().split('T')[0]}.csv`}
-                className="group relative overflow-hidden px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 hover:scale-105 hover:shadow-2xl flex items-center justify-center gap-2"
-                style={{
-                  background: 'linear-gradient(135deg, #D4AF37 0%, #F0D770 50%, #D4AF37 100%)',
-                  border: '2px solid rgba(212, 175, 55, 0.6)',
-                  boxShadow: '0 4px 25px rgba(212, 175, 55, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-                  color: '#000000'
-                }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 transform -skew-x-12 group-hover:translate-x-full transition-transform duration-700"></div>
-                <svg className="w-3 h-3 sm:w-4 sm:h-4 relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span className="relative z-10 hidden sm:inline">Export</span>
-              </CSVLink>
-            </div>
           </div>
         </div>
       </div>
@@ -319,7 +265,12 @@ const ResultsPage: React.FC = () => {
           {/* Vertical Teams Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pb-4">
             {teams.map((team, index) => {
-              const teamPlayers = players.filter(p => (p.team === team._id || p.team === team.name) && p.status === 'sold');
+              // Handle populated team field (team is object with _id) or string ID
+              const teamPlayers = players.filter(p => {
+                if (!p.team || p.status !== 'sold') return false;
+                const playerTeamId = typeof p.team === 'object' ? (p.team as any)._id : p.team;
+                return String(playerTeamId) === String(team._id);
+              });
               const spent = teamPlayers.reduce((sum, p) => sum + (p.soldAmount || 0), 0);
               
               // Use backend data when available, fallback to calculated values
@@ -431,9 +382,10 @@ const ResultsPage: React.FC = () => {
                       </div>
                     </div>
                     
-                    {/* Players List - Scrollable Compact */}
+                    {/* Players List - Scrollable Compact (Max 4 visible) */}
                     {teamPlayers.length > 0 ? (
-                      <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1.5">
+                      <div className="flex-1 min-h-0">
+                        <div className="overflow-y-auto custom-scrollbar space-y-1.5" style={{ maxHeight: '240px' }}>
                         {teamPlayers.map((player) => (
                           <div
                             key={player._id}
@@ -464,6 +416,7 @@ const ResultsPage: React.FC = () => {
                             </div>
                           </div>
                         ))}
+                        </div>
                       </div>
                     ) : (
                       <div className="flex-1 flex items-center justify-center bg-slate-900/30 rounded-lg border border-slate-700/30">
@@ -532,7 +485,11 @@ const ResultsPage: React.FC = () => {
                   // Use team.players array if available, otherwise filter from global players
                   const teamPlayers = selectedTeam.players && selectedTeam.players.length > 0
                     ? selectedTeam.players
-                    : players.filter(p => (p.team === selectedTeam._id || p.team === selectedTeam.name) && p.status === 'sold');
+                    : players.filter(p => {
+                        if (!p.team || p.status !== 'sold') return false;
+                        const playerTeamId = typeof p.team === 'object' ? (p.team as any)._id : p.team;
+                        return String(playerTeamId) === String(selectedTeam._id);
+                      });
                   const spent = teamPlayers.reduce((sum, p) => sum + (p.soldAmount || 0), 0);
                   const actualRemaining = selectedTeam.remainingBudget !== undefined && selectedTeam.remainingBudget !== null 
                     ? selectedTeam.remainingBudget 
@@ -581,10 +538,11 @@ const ResultsPage: React.FC = () => {
                 // Use team.players array if available, otherwise filter from global players
                 const teamPlayers = selectedTeam.players && selectedTeam.players.length > 0
                   ? selectedTeam.players
-                  : players.filter(p => 
-                      (p.team === selectedTeam._id || p.team === selectedTeam.name) && 
-                      p.status === 'sold'
-                    );
+                  : players.filter(p => {
+                      if (!p.team || p.status !== 'sold') return false;
+                      const playerTeamId = typeof p.team === 'object' ? (p.team as any)._id : p.team;
+                      return String(playerTeamId) === String(selectedTeam._id);
+                    });
                 
                 console.log('Modal - Selected Team:', selectedTeam.name, selectedTeam._id);
                 console.log('Modal - Team.players array:', selectedTeam.players);
@@ -696,6 +654,7 @@ const ResultsPage: React.FC = () => {
                           borderColor: 'rgba(212, 175, 55, 0.2)',
                           background: 'linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.5))'
                         }}>
+                          {isAuctioneer ? (
                           <div className="flex gap-2">
                             <button
                               onClick={(e) => {
@@ -724,6 +683,14 @@ const ResultsPage: React.FC = () => {
                               <span className="text-sm font-bold text-white">Remove</span>
                             </button>
                           </div>
+                          ) : (
+                            <div className="mt-3 px-3 py-2 rounded-lg text-center" style={{
+                              background: 'rgba(100, 100, 100, 0.2)',
+                              border: '1px solid rgba(150, 150, 150, 0.3)'
+                            }}>
+                              <p className="text-gray-400 text-xs">🔒 Viewer Mode</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}

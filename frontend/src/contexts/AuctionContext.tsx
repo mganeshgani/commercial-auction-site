@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import io from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { Player } from '../types';
+import { initializeSocket, getAuctioneerId } from '../services/socket';
 
 interface AuctionContextType {
   currentPlayer: Player | null;
@@ -32,9 +32,8 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [bidTimeLeft, setBidTimeLeft] = useState(10);
 
   useEffect(() => {
-    // Use REACT_APP_API_URL and remove /api for socket connection
-    const socketUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
-    const socketInstance = io(socketUrl);
+    // Initialize socket with auctioneer room isolation
+    const socketInstance = initializeSocket();
 
     socketInstance.on('connect', () => {
       setIsConnected(true);
@@ -98,13 +97,15 @@ export const AuctionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const placeBid = (amount: number, teamId: string) => {
     if (socket) {
-      socket.emit('placeBid', { amount, teamId });
+      const auctioneerId = getAuctioneerId();
+      socket.emit('placeBid', { amount, teamId, auctioneerId });
     }
   };
 
   const startPlayerAuction = (player: Player) => {
     if (socket) {
-      socket.emit('startPlayerAuction', player);
+      const auctioneerId = getAuctioneerId();
+      socket.emit('startPlayerAuction', { player, auctioneerId });
     }
   };
 

@@ -1,14 +1,16 @@
 ﻿import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Player, Team } from '../types';
 import SpinWheel from '../components/auction/SpinWheel';
 import PlayerCard from '../components/auction/PlayerCard';
 import TeamCard from '../components/auction/TeamCard';
 import TeamSelectionModal from '../components/auction/TeamSelectionModal';
+import { useAuth } from '../contexts/AuthContext';
+import { playerService, teamService } from '../services/api';
+import { initializeSocket } from '../services/socket';
 import '../maisonCelebration.css';
-import io from 'socket.io-client';
 
 const AuctionPage: React.FC = () => {
+  const { isAuctioneer } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -22,17 +24,16 @@ const AuctionPage: React.FC = () => {
   const [hasAuctionStarted, setHasAuctionStarted] = useState(false);
 
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
-  const SOCKET_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
 
   useEffect(() => {
     fetchTeams();
     fetchAvailableCount();
 
-    // Setup Socket.io connection for real-time updates
-    const socket = io(SOCKET_URL);
+    // Setup Socket.io connection for real-time updates with auctioneer isolation
+    const socket = initializeSocket();
 
     socket.on('connect', () => {
-      console.log('✓ Socket.io connected');
+      console.log('✓ Socket connected for auction page');
     });
 
     // OPTIMIZED: Debounce socket events to prevent fetch spam
@@ -70,7 +71,7 @@ const AuctionPage: React.FC = () => {
       socket.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [SOCKET_URL]);
+  }, []);
 
   const playSoldSound = () => {
     const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjGG0fPTgjMGHm7A7+OZSA0PVarn7KhYFgpIn+DxwG8jBzGF0PLWhzUHImzB7uGWRgsRVKnn7KlZGAhLnuHyv28kBzOE0/LXiTYIJW2+7eCVRwwSU6vo7KpbGQlMneLxv3AlCDSE0/PYijcJJm7A7d+VRwwTVKzp7KpcGgpNnuLyv3ElCDWF0/PYjDgKKG6/7d6URwwUVKzq7KpdGwpNneLyv3ElCDWF0/LYjDgKKW+/7d6VRw0VVK3q7KpeGwtNnePyv3EmCTWF0vLYjDgLKm++7d+URg0WVazq7KpeHA1OoOPywHEmCjaF0fPXizgLK2+/7+CVRg4XVqzr7KpfHA1OoOPywHEmCzeF0fPXjDkLKnC/7+GWRg4YVq3r7KpgHA5PoOPzwHEmCzeF0fPXjTkMK3C/7+GVRw8ZVq3s7KpgHQ5PoOPzwHEnDDiF0PPXjToNLHC+7+GWRxAaV63s7KpgHg5QoOPzwHEnDDiG0PPYjToNLHC/7+GWRxAaV63t7KpgHg9QoOPzwHEnDDiG0fPXjToNLXC/8OGWRxAbV67t7KpgHw9QoOPzwHInDTiG0fPXjTsOLnC/8OGWRxEcV67t7KpgHw9RoOPzwHInDTmG0fPXjTsOLnC/8OGWRxEcWK7t7KtgHw9RoOPzwHInDTmG0fPYjTsOL3C/8OGXRxEdWK7u7KthHxBRn+PzwHIoDTmG0fPXjTsOL3C/8OGXRxEdWK7u7KthHxBRn+PzwHIoDTmG0vPYjTwPMHDA8OGXSBEEWK7u7KthIBBSn+P0wHIoDjmG0vPYjTwPMHDA8OGXSBEEWK7u7KthIBBSn+P0wHIoDjqG0vPYjTwPMHC/8OGXSBEEWK7v7KthIBBSn+P0wHIoDjqG0vPYjTwPMXC/8OGXSBIFWa/v7KxiIBFSn+P0wHIpDjqG0vPYjjwQMXC/8OGYSBIFW6/v7KxiIBFSn+P0wXIpDjuG0vPYjzwQMnC/8OGYSBIFWq/v7KxiIRFSoOT0wXIpDjuG0vPYjzwRM3C/8eGYSRMGWq/w7KxjIRFToOP0wXIqDzuG0/PZjzwRM3C/8eGYSRMGWq/w7KxjIRJToOP0wXIqDzuG0/PZjzwRNHC/8eGYSRMHWq/w7K1jIRJToOP0wnIqDzuH0/PZjzwRNHC/8eKYSRMHWq/w7K1jIRJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqA==');
@@ -80,8 +81,8 @@ const AuctionPage: React.FC = () => {
 
   const fetchTeams = async () => {
     try {
-      const response = await axios.get(`${API_URL}/teams`);
-      setTeams(response.data);
+      const data = await teamService.getAllTeams();
+      setTeams(data);
     } catch (error) {
       console.error('Error fetching teams:', error);
     }
@@ -89,8 +90,8 @@ const AuctionPage: React.FC = () => {
 
   const fetchAvailableCount = async () => {
     try {
-      const response = await axios.get(`${API_URL}/players`);
-      const available = response.data.filter((p: Player) => p.status === 'available').length;
+      const data = await playerService.getAllPlayers();
+      const available = data.filter((p: Player) => p.status === 'available').length;
       setAvailableCount(available);
     } catch (error) {
       console.error('Error fetching players:', error);
@@ -110,8 +111,8 @@ const AuctionPage: React.FC = () => {
 
   const handleSpinComplete = async () => {
     try {
-      const response = await axios.get(`${API_URL}/players`);
-      const availablePlayers = response.data.filter((p: Player) => p.status === 'available');
+      const data = await playerService.getAllPlayers();
+      const availablePlayers = data.filter((p: Player) => p.status === 'available');
       
       if (availablePlayers.length === 0) {
         alert('No more available players!');
@@ -148,13 +149,13 @@ const AuctionPage: React.FC = () => {
     setShowTeamModal(false);
 
     try {
-      await axios.patch(`${API_URL}/players/${currentPlayer._id}`, {
+      await playerService.updatePlayer(currentPlayer._id, {
         status: 'sold',
         team: teamId,
         soldAmount: soldAmount
       });
 
-      await axios.patch(`${API_URL}/teams/${teamId}`, {
+      await teamService.patchTeam(teamId, {
         $push: { players: currentPlayer._id },
         soldAmount: soldAmount
       });
@@ -190,7 +191,7 @@ const AuctionPage: React.FC = () => {
     if (!currentPlayer) return;
 
     try {
-      await axios.patch(`${API_URL}/players/${currentPlayer._id}`, {
+      await playerService.updatePlayer(currentPlayer._id, {
         status: 'unsold'
       });
 
@@ -203,10 +204,11 @@ const AuctionPage: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col px-4 py-3" style={{
-      background: 'linear-gradient(160deg, #000000 0%, #0a0a0a 25%, #1a1a1a 50%, #0f172a 75%, #1a1a1a 100%)',
-      backgroundAttachment: 'fixed'
-    }}>
+    <>
+      <div className="h-full flex flex-col px-4 py-3" style={{
+        background: 'linear-gradient(160deg, #000000 0%, #0a0a0a 25%, #1a1a1a 50%, #0f172a 75%, #1a1a1a 100%)',
+        backgroundAttachment: 'fixed'
+      }}>
       {/* Compact Header */}
       <div className="flex justify-between items-center mb-3 flex-shrink-0">
         <h1 className="text-2xl font-bold">Live Auction</h1>
@@ -320,7 +322,8 @@ const AuctionPage: React.FC = () => {
                     : 'Continue the auction journey'}
                 </p>
 
-                {/* Premium Button */}
+                {/* Premium Button - Only for Auctioneers */}
+                {isAuctioneer ? (
                 <button
                   onClick={handleNextPlayer}
                   disabled={availableCount === 0}
@@ -360,6 +363,16 @@ const AuctionPage: React.FC = () => {
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
                   </div>
                 </button>
+                ) : (
+                  <div className="px-6 py-3 rounded-lg" style={{
+                    background: 'rgba(100, 100, 100, 0.3)',
+                    border: '1px solid rgba(150, 150, 150, 0.3)'
+                  }}>
+                    <p className="text-gray-400 text-sm">
+                      🔒 Viewer Mode - Auction controls restricted
+                    </p>
+                  </div>
+                )}
 
                 {/* Available Count Badge */}
                 {availableCount > 0 ? (
@@ -400,6 +413,7 @@ const AuctionPage: React.FC = () => {
                 handleSoldClick={handleSoldClick}
                 handleUnsoldClick={handleMarkUnsold}
                 loading={false}
+                isAuctioneer={isAuctioneer}
               />
               
               <TeamSelectionModal
@@ -416,7 +430,7 @@ const AuctionPage: React.FC = () => {
 
       {/* � PROFESSIONAL LUXURY CELEBRATION OVERLAY � */}
       {showCelebration && (
-        <div className="luxury-celebration-overlay">
+        <div className="maison-celebration-overlay">
           {/* Deep Luxury Backdrop */}
           <div className="maison-backdrop"></div>
           
@@ -1239,6 +1253,7 @@ const AuctionPage: React.FC = () => {
         </p>
       </div>
     </div>
+    </>
   );
 };
 

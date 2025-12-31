@@ -1,8 +1,13 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   
   const navigation = [
     { name: 'Auction', href: '/' },
@@ -12,13 +17,53 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { name: 'Results', href: '/results' },
   ];
 
+  // Add Admin link for admin users
+  const { isAdmin } = useAuth();
+  const allNavigation = isAdmin 
+    ? [...navigation, { name: 'Admin', href: '/admin' }]
+    : navigation;
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserMenu]);
+
+  const handleLogout = async () => {
+    setShowUserMenu(false);
+    await logout();
+    navigate('/login');
+  };
+
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'bg-red-500/20 text-red-400 border-red-500';
+      case 'auctioneer':
+        return 'bg-amber-500/20 text-amber-400 border-amber-500';
+      default:
+        return 'bg-slate-500/20 text-slate-400 border-slate-500';
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{
       background: 'linear-gradient(160deg, #000000 0%, #0a0a0a 25%, #1a1a1a 50%, #0f172a 75%, #1a1a1a 100%)',
       backgroundAttachment: 'fixed'
     }}>
       {/* Premium Header */}
-      <header className="flex-shrink-0" style={{
+      <header className="flex-shrink-0 relative z-50" style={{
         background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(26, 26, 26, 0.9) 50%, rgba(0, 0, 0, 0.95) 100%)',
         backdropFilter: 'blur(25px) saturate(1.5)',
         WebkitBackdropFilter: 'blur(25px) saturate(1.5)',
@@ -91,7 +136,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               
               {/* Desktop Navigation */}
               <nav className="hidden lg:ml-10 lg:flex lg:space-x-2">
-                {navigation.map((item) => {
+                {allNavigation.map((item) => {
                   const isActive = location.pathname === item.href;
                   return (
                     <Link
@@ -153,14 +198,69 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </nav>
             </div>
 
-            {/* Right Side - Status/User Area */}
-            <div className="flex items-center gap-4">
+            {/* Right Side - User Info & Status */}
+            <div className="flex items-center gap-3 relative z-[100]">
+              {/* User Menu */}
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all hover:bg-gray-800/50"
+                  style={{
+                    border: '1px solid rgba(212, 175, 55, 0.3)'
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-white max-w-[100px] truncate">{user?.name}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded border ${getRoleBadgeColor(user?.role || 'viewer')}`}>
+                      {user?.role}
+                    </span>
+                  </div>
+                  <svg
+                    className={`w-3 h-3 text-amber-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {/* Dropdown Menu */}
+                {showUserMenu && (
+                  <div
+                    className="absolute right-0 mt-2 w-52 rounded-lg shadow-2xl z-[9999]"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.98) 0%, rgba(26, 26, 26, 0.95) 100%)',
+                      border: '1px solid rgba(212, 175, 55, 0.4)',
+                      backdropFilter: 'blur(20px)'
+                    }}
+                  >
+                    <div className="p-3 border-b border-gray-700">
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Signed in as</p>
+                      <p className="text-white text-xs font-medium truncate">{user?.email}</p>
+                    </div>
+                    <div className="p-2">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-red-900/20 rounded transition-colors flex items-center gap-2 font-medium"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Live Status */}
               <div className="relative" style={{
-                padding: '8px 16px',
+                padding: '6px 12px',
                 background: 'linear-gradient(135deg, rgba(176, 139, 79, 0.08) 0%, rgba(125, 75, 87, 0.05) 100%)',
                 border: '1.5px solid rgba(176, 139, 79, 0.3)',
                 borderRadius: '20px',
-                fontSize: '0.75rem',
+                fontSize: '0.625rem',
                 fontFamily: "'Montserrat', sans-serif",
                 fontWeight: 600,
                 letterSpacing: '0.1em',
@@ -243,7 +343,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           backdropFilter: 'blur(10px)'
         }}>
           <nav className="flex overflow-x-auto px-4 py-2 gap-2">
-            {navigation.map((item) => {
+            {allNavigation.map((item) => {
               const isActive = location.pathname === item.href;
               return (
                 <Link
