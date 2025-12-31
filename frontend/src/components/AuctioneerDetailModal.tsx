@@ -33,6 +33,7 @@ const AuctioneerDetailModal: React.FC<AuctioneerDetailModalProps> = ({
   onClose,
   onUpdate,
 }) => {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
   const [activeTab, setActiveTab] = useState<'overview' | 'limits' | 'activity'>('overview');
   const [isEditingLimits, setIsEditingLimits] = useState(false);
   const [maxPlayers, setMaxPlayers] = useState(auctioneer.limits.maxPlayers);
@@ -60,7 +61,7 @@ const AuctioneerDetailModal: React.FC<AuctioneerDetailModalProps> = ({
 
       const token = localStorage.getItem('token');
       await axios.put(
-        `/api/admin/auctioneers/${auctioneer._id}`,
+        `${API_URL}/admin/auctioneers/${auctioneer._id}`,
         {
           limits: {
             maxPlayers: Number(maxPlayers),
@@ -91,7 +92,7 @@ const AuctioneerDetailModal: React.FC<AuctioneerDetailModalProps> = ({
 
       const token = localStorage.getItem('token');
       await axios.post(
-        `/api/admin/auctioneers/${auctioneer._id}/grant-access`,
+        `${API_URL}/admin/auctioneers/${auctioneer._id}/grant-access`,
         { days: accessDays },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -120,7 +121,7 @@ const AuctioneerDetailModal: React.FC<AuctioneerDetailModalProps> = ({
 
       const token = localStorage.getItem('token');
       await axios.post(
-        `/api/admin/auctioneers/${auctioneer._id}/revoke-access`,
+        `${API_URL}/admin/auctioneers/${auctioneer._id}/revoke-access`,
         {},
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -147,7 +148,7 @@ const AuctioneerDetailModal: React.FC<AuctioneerDetailModalProps> = ({
       setError('');
 
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/admin/auctioneers/${auctioneer._id}`, {
+      await axios.delete(`${API_URL}/admin/auctioneers/${auctioneer._id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

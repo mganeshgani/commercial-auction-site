@@ -22,6 +22,7 @@ interface Auctioneer {
 }
 
 const AuctioneersPage: React.FC = () => {
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
   const [auctioneers, setAuctioneers] = useState<Auctioneer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,7 +37,7 @@ const AuctioneersPage: React.FC = () => {
   const fetchAuctioneers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/admin/auctioneers', {
+      const response = await axios.get(`${API_URL}/admin/auctioneers`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setAuctioneers(response.data.data);
