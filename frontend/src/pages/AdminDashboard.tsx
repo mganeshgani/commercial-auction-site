@@ -33,6 +33,7 @@ interface Auctioneer {
 
 const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
   const [stats, setStats] = useState<DashboardStats>({
     totalAuctioneers: 0,
     activeAuctioneers: 0,
@@ -52,10 +53,10 @@ const AdminDashboard: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       const [statsRes, auctioneersRes] = await Promise.all([
-        axios.get('/api/admin/stats', {
+        axios.get(`${API_URL}/admin/stats`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        axios.get('/api/admin/auctioneers', {
+        axios.get(`${API_URL}/admin/auctioneers`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
