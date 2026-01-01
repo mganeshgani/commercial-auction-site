@@ -5,9 +5,11 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
 
+// Eagerly load Layout components to prevent header flash during navigation
+import Layout from './layouts/Layout';
+import AdminLayout from './layouts/AdminLayout';
+
 // Lazy load all pages for code splitting (reduces initial bundle size)
-const Layout = lazy(() => import('./layouts/Layout'));
-const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
 const Login = lazy(() => import('./pages/Login'));
 const PlayerRegistrationPage = lazy(() => import('./pages/PlayerRegistrationPage'));
 const FormBuilderPage = lazy(() => import('./pages/FormBuilderPage'));
@@ -20,7 +22,24 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AuctioneersPage = lazy(() => import('./pages/AuctioneersPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
-// Premium loading spinner component
+// Premium loading spinner component for page content
+const PageLoadingSpinner = () => (
+  <div className="h-full w-full flex items-center justify-center" style={{
+    minHeight: '400px'
+  }}>
+    <div className="text-center">
+      <div className="relative inline-block">
+        <div className="w-12 h-12 rounded-full border-4 border-t-amber-500 border-r-transparent border-b-amber-500/30 border-l-transparent animate-spin"></div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 animate-pulse"></div>
+        </div>
+      </div>
+      <p className="mt-3 text-amber-400/80 text-xs font-medium tracking-wider">Loading...</p>
+    </div>
+  </div>
+);
+
+// Full page loading spinner (for login/initial load)
 const LoadingSpinner = () => (
   <div className="h-screen w-screen flex items-center justify-center" style={{
     background: 'linear-gradient(160deg, #000000 0%, #0a0a0a 25%, #1a1a1a 50%, #0f172a 75%, #1a1a1a 100%)'
@@ -82,49 +101,63 @@ function App() {
                 <Route path="/auction" element={
                   <ProtectedRoute requiredRole="auctioneer">
                     <Layout>
-                      <AuctionPage />
+                      <Suspense fallback={<PageLoadingSpinner />}>
+                        <AuctionPage />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 } />
                 <Route path="/teams" element={
                   <ProtectedRoute requiredRole="auctioneer">
                     <Layout>
-                      <TeamsPage />
+                      <Suspense fallback={<PageLoadingSpinner />}>
+                        <TeamsPage />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 } />
                 <Route path="/players" element={
                   <ProtectedRoute requiredRole="auctioneer">
                     <Layout>
-                      <PlayersPage />
+                      <Suspense fallback={<PageLoadingSpinner />}>
+                        <PlayersPage />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 } />
                 <Route path="/unsold" element={
                   <ProtectedRoute requiredRole="auctioneer">
                     <Layout>
-                      <UnsoldPage />
+                      <Suspense fallback={<PageLoadingSpinner />}>
+                        <UnsoldPage />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 } />
                 <Route path="/results" element={
                   <ProtectedRoute requiredRole="auctioneer">
                     <Layout>
-                      <ResultsPage />
+                      <Suspense fallback={<PageLoadingSpinner />}>
+                        <ResultsPage />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 } />
                 <Route path="/form-builder" element={
                   <ProtectedRoute requiredRole="auctioneer">
                     <Layout>
-                      <FormBuilderPage />
+                      <Suspense fallback={<PageLoadingSpinner />}>
+                        <FormBuilderPage />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 } />
                 <Route path="/settings" element={
                   <ProtectedRoute requiredRole="auctioneer">
                     <Layout>
-                      <SettingsPage />
+                      <Suspense fallback={<PageLoadingSpinner />}>
+                        <SettingsPage />
+                      </Suspense>
                     </Layout>
                   </ProtectedRoute>
                 } />

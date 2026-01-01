@@ -9,6 +9,23 @@ interface BrandingConfig {
   logoUrl: string;
 }
 
+// Get cached branding from localStorage or use defaults
+const getCachedBranding = (): BrandingConfig => {
+  try {
+    const cached = localStorage.getItem('brandingConfig');
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (e) {
+    // Ignore parse errors
+  }
+  return {
+    title: 'SPORTS AUCTION',
+    subtitle: 'St Aloysius (Deemed To Be University)',
+    logoUrl: '/logo.png'
+  };
+};
+
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -17,11 +34,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
   
-  const [branding, setBranding] = useState<BrandingConfig>({
-    title: 'SPORTS AUCTION',
-    subtitle: 'St Aloysius (Deemed To Be University)',
-    logoUrl: '/logo.png'
-  });
+  // Initialize with cached branding to prevent flash
+  const [branding, setBranding] = useState<BrandingConfig>(getCachedBranding);
 
   // Fetch branding config
   useEffect(() => {
@@ -34,11 +48,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           });
           if (response.data?.data?.branding) {
             const b = response.data.data.branding;
-            setBranding({
+            const newBranding = {
               title: b.title || 'SPORTS AUCTION',
               subtitle: b.subtitle || 'St Aloysius (Deemed To Be University)',
               logoUrl: b.logoUrl || '/logo.png'
-            });
+            };
+            setBranding(newBranding);
+            // Cache branding in localStorage
+            localStorage.setItem('brandingConfig', JSON.stringify(newBranding));
           }
         }
       } catch (error) {
