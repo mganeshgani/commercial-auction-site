@@ -83,7 +83,7 @@ const TeamsPage: React.FC = () => {
     } catch (error) {
       console.error('Error deleting team:', error);
     }
-  }, [fetchTeams, API_URL]);
+  }, [API_URL, fetchTeams]);
 
   const resetForm = () => {
     setFormData({ name: '', totalSlots: 11, budget: 100000 });
