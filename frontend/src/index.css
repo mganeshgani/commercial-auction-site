@@ -83,6 +83,33 @@ code {
   color: var(--black-pure);
 }
 
+/* Custom scrollbar utility class for specific elements */
+.scrollbar-custom {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(217, 119, 6, 0.6) rgba(0, 0, 0, 0.9);
+}
+
+.scrollbar-custom::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.9);
+  border-radius: 6px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(217, 119, 6, 0.7) 0%, rgba(234, 179, 8, 0.7) 50%, rgba(217, 119, 6, 0.7) 100%);
+  border-radius: 6px;
+  border: 1px solid rgba(217, 119, 6, 0.3);
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(217, 119, 6, 0.9) 0%, rgba(234, 179, 8, 0.9) 50%, rgba(217, 119, 6, 0.9) 100%);
+  box-shadow: 0 0 8px rgba(217, 119, 6, 0.5);
+}
+
 ::-moz-selection {
   background: var(--gold-cartier);
   color: var(--black-pure);

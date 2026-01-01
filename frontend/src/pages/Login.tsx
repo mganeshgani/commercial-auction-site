@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const Login: React.FC = () => {
@@ -71,14 +71,17 @@ const Login: React.FC = () => {
 
             {/* Form */}
             <div className="px-6 sm:px-8 py-6 space-y-5">
-              {error && (
-                <div className="bg-red-500/10 border border-red-500/50 rounded-lg px-4 py-3 flex items-start gap-3">
-                  <svg className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                  <p className="text-sm text-red-300">{error}</p>
-                </div>
-              )}
+              {/* Fixed height container for error message to prevent layout shift */}
+              <div className="min-h-[60px]">
+                {error && (
+                  <div className="bg-red-500/10 border border-red-500/50 rounded-lg px-4 py-3 flex items-start gap-3">
+                    <svg className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-sm text-red-300">{error}</p>
+                  </div>
+                )}
+              </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Email */}
@@ -136,32 +139,6 @@ const Login: React.FC = () => {
                   )}
                 </button>
               </form>
-
-              {/* Sign Up Link */}
-              <div className="pt-4 text-center">
-                <p className="text-sm text-slate-400">
-                  Don't have an account?{' '}
-                  <Link to="/register" className="text-amber-400 hover:text-amber-300 font-medium transition-colors">
-                    Create one
-                  </Link>
-                </p>
-              </div>
-            </div>
-
-            {/* Demo Accounts */}
-            <div className="px-6 sm:px-8 py-4 bg-slate-950/50 border-t border-slate-800">
-              <details className="group">
-                <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-400 transition-colors flex items-center justify-center gap-2">
-                  <span>Demo Accounts</span>
-                  <svg className="w-4 h-4 transform group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </summary>
-                <div className="mt-3 space-y-1.5 text-xs text-slate-500">
-                  <div className="flex justify-between"><span>Admin:</span><span className="font-mono">admin@auction.com / admin123</span></div>
-                  <div className="flex justify-between"><span>Auctioneer:</span><span className="font-mono">auctioneer@auction.com / auctioneer123</span></div>
-                </div>
-              </details>
             </div>
           </div>
         </div>

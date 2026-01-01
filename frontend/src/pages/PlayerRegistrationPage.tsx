@@ -312,6 +312,60 @@ const PlayerRegistrationPage: React.FC = () => {
                   ) : (
                     formConfig && (
                       <>
+                        {/* Photo Upload - First */}
+                        {formConfig.fields.find(f => f.fieldName === 'photo') && (
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2 mb-2.5">
+                              <div className="h-[1px] flex-grow bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
+                              <h3 className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400">
+                                Player Photo
+                              </h3>
+                              <div className="h-[1px] flex-grow bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
+                            </div>
+
+                            <div className="space-y-2.5">
+                              <label className="block text-xs font-semibold text-slate-200">
+                                Upload Photo
+                                {formConfig.fields.find(f => f.fieldName === 'photo')?.required && (
+                                  <span className="text-red-400 ml-1">*</span>
+                                )}
+                              </label>
+                              <div className="flex items-start gap-3">
+                                <label className="flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-xl border-2 border-dashed border-slate-600/50 hover:border-amber-500/50 transition-all cursor-pointer overflow-hidden bg-slate-900/40 group">
+                                  {photoPreview ? (
+                                    <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 group-hover:text-amber-400 transition-colors">
+                                      <svg className="w-6 h-6 sm:w-7 sm:h-7 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                      </svg>
+                                      <span className="text-[9px] font-medium">Upload</span>
+                                    </div>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handlePhotoChange}
+                                    required={formConfig.fields.find(f => f.fieldName === 'photo')?.required}
+                                    className="hidden"
+                                  />
+                                </label>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[10px] text-slate-400 mb-1.5">Upload a clear photo of the player</p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 text-[9px] font-medium">
+                                      JPG, PNG
+                                    </span>
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 text-[9px] font-medium">
+                                      Max 5MB
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Player Details Section */}
                         <div className="space-y-3">
                           <div className="flex items-center gap-2 mb-2.5">
@@ -435,64 +489,6 @@ const PlayerRegistrationPage: React.FC = () => {
                                     </div>
                                   );
                                 })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Photo Upload */}
-                        {formConfig.fields.find(f => f.fieldName === 'photo') && (
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-2 mb-2.5">
-                              <div className="h-[1px] flex-grow bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
-                              <h3 className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400">
-                                Player Photo
-                              </h3>
-                              <div className="h-[1px] flex-grow bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
-                            </div>
-
-                            <div className="space-y-2.5">
-                              <label className="block text-xs font-semibold text-slate-200">
-                                Photo
-                                {formConfig.fields.find(f => f.fieldName === 'photo')?.required && (
-                                  <span className="text-red-400 ml-1">*</span>
-                                )}
-                              </label>
-
-                              {photoPreview && (
-                                <div className="flex justify-center">
-                                  <div className="relative group">
-                                    <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-xl blur opacity-50 group-hover:opacity-75 transition" />
-                                    <img
-                                      src={photoPreview}
-                                      alt="Preview"
-                                      className="relative w-16 h-16 object-cover rounded-lg border-2 border-amber-500/60 shadow-lg"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setPhoto(null);
-                                        setPhotoPreview('');
-                                      }}
-                                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center transition-all shadow-md"
-                                    >
-                                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                                      </svg>
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handlePhotoChange}
-                                required={!!formConfig.fields.find(f => f.fieldName === 'photo')?.required && !photo}
-                                className="w-full px-3 py-2 bg-slate-900/60 border border-slate-600/50 rounded-xl text-[11px] text-white file:mr-2.5 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-gradient-to-r file:from-amber-600 file:to-amber-500 file:text-white hover:file:from-amber-500 hover:file:to-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/60 transition-all cursor-pointer"
-                              />
-                              <p className="text-[9px] text-slate-500">
-                                JPEG, PNG, GIF, WebP • Max 10MB
-                              </p>
                             </div>
                           </div>
                         )}

@@ -28,10 +28,12 @@ exports.createTeam = async (req, res) => {
               public_id: `team_${name}_${Date.now()}`,
               resource_type: 'image',
               transformation: [
-                { width: 300, height: 300, crop: 'limit' },
-                { quality: 'auto:low' },
+                { width: 200, height: 200, crop: 'fill', gravity: 'auto' },
+                { quality: 'auto:eco' },
                 { fetch_format: 'auto' }
-              ]
+              ],
+              eager: [],
+              eager_async: false
             },
             (error, result) => {
               if (error) reject(error);
@@ -118,10 +120,12 @@ exports.updateTeam = async (req, res) => {
               public_id: `team_${name || team.name}_${Date.now()}`,
               resource_type: 'image',
               transformation: [
-                { width: 300, height: 300, crop: 'limit' },
-                { quality: 'auto:low' },
+                { width: 200, height: 200, crop: 'fill', gravity: 'auto' },
+                { quality: 'auto:eco' },
                 { fetch_format: 'auto' }
-              ]
+              ],
+              eager: [],
+              eager_async: false
             },
             (error, result) => {
               if (error) reject(error);

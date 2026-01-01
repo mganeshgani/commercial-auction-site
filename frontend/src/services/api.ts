@@ -8,6 +8,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30 second timeout
 });
 
 // Add request interceptor to include auth token
@@ -23,6 +24,32 @@ api.interceptors.request.use(
     return Promise.reject(error);
   }
 );
+
+// Simple in-memory cache with TTL
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+}
+
+const cache = new Map<string, CacheEntry>();
+const CACHE_TTL = 30000; // 30 seconds
+
+const getCached = (key: string) => {
+  const entry = cache.get(key);
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
+    return entry.data;
+  }
+  cache.delete(key);
+  return null;
+};
+
+const setCache = (key: string, data: any) => {
+  cache.set(key, { data, timestamp: Date.now() });
+};
+
+export const clearCache = () => {
+  cache.clear();
+};
 
 export const playerService = {
   uploadPlayers: async (file: File) => {
@@ -54,12 +81,19 @@ export const playerService = {
     return response.data;
   },
 
-  getAllPlayers: async () => {
+  getAllPlayers: async (useCache = true) => {
+    const cacheKey = 'players:all';
+    if (useCache) {
+      const cached = getCached(cacheKey);
+      if (cached) return cached;
+    }
     const response = await api.get<Player[]>('/players');
+    setCache(cacheKey, response.data);
     return response.data;
   },
 
   updatePlayer: async (playerId: string, data: Partial<Player>) => {
+    clearCache(); // Invalidate cache on update
     const response = await api.patch<Player>(`/players/${playerId}`, data);
     return response.data;
   },
@@ -67,32 +101,48 @@ export const playerService = {
 
 export const teamService = {
   createTeam: async (data: Partial<Team>) => {
+    clearCache(); // Invalidate cache
     const response = await api.post<Team>('/teams', data);
     return response.data;
   },
 
   updateTeam: async (teamId: string, data: Partial<Team>) => {
+    clearCache(); // Invalidate cache
     const response = await api.put<Team>(`/teams/${teamId}`, data);
     return response.data;
   },
 
   patchTeam: async (teamId: string, data: any) => {
+    clearCache(); // Invalidate cache
     const response = await api.patch(`/teams/${teamId}`, data);
     return response.data;
   },
 
   deleteTeam: async (teamId: string) => {
+    clearCache(); // Invalidate cache
     const response = await api.delete(`/teams/${teamId}`);
     return response.data;
   },
 
-  getAllTeams: async () => {
+  getAllTeams: async (useCache = true) => {
+    const cacheKey = 'teams:all';
+    if (useCache) {
+      const cached = getCached(cacheKey);
+      if (cached) return cached;
+    }
     const response = await api.get<Team[]>('/teams');
+    setCache(cacheKey, response.data);
     return response.data;
   },
 
-  getTeamById: async (teamId: string) => {
+  getTeamById: async (teamId: string, useCache = true) => {
+    const cacheKey = `team:${teamId}`;
+    if (useCache) {
+      const cached = getCached(cacheKey);
+      if (cached) return cached;
+    }
     const response = await api.get<Team>(`/teams/${teamId}`);
+    setCache(cacheKey, response.data);
     return response.data;
   },
 

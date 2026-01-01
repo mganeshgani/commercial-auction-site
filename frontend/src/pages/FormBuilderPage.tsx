@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-
 
 interface FormField {
   fieldName: string;
@@ -14,42 +13,45 @@ interface FormField {
   order: number;
 }
 
-
-interface SportTemplate {
+interface Template {
   id: string;
   name: string;
-  sportType: string;
-  fieldCount: number;
+  description: string;
+  icon: string;
 }
 
+const FIELD_TYPES = [
+  { value: 'text', label: 'Text', icon: '📝' },
+  { value: 'number', label: 'Number', icon: '🔢' },
+  { value: 'email', label: 'Email', icon: '📧' },
+  { value: 'tel', label: 'Phone', icon: '📱' },
+  { value: 'date', label: 'Date', icon: '📅' },
+  { value: 'select', label: 'Dropdown', icon: '📋' },
+  { value: 'textarea', label: 'Long Text', icon: '📄' },
+  { value: 'file', label: 'File Upload', icon: '📎' },
+];
 
 const FormBuilderPage: React.FC = () => {
   const { isAuctioneer } = useAuth();
   const navigate = useNavigate();
-  const [formTitle, setFormTitle] = useState('Player Registration');
-  const [formDescription, setFormDescription] = useState('Fill in your details to register');
-  const [sportType, setSportType] = useState('general');
-  const [fields, setFields] = useState<FormField[]>([]);
-  const [templates, setTemplates] = useState<SportTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
+  const [formTitle, setFormTitle] = useState('Player Registration');
+  const [formDescription, setFormDescription] = useState('Fill in your details to register');
+  const [fields, setFields] = useState<FormField[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [showAddField, setShowAddField] = useState(false);
 
-  useEffect(() => {
-    if (!isAuctioneer) {
-      navigate('/login');
-      return;
-    }
-    fetchFormConfig();
-    fetchTemplates();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuctioneer]);
+  const templates: Template[] = [
+    { id: 'custom', name: 'Custom', description: 'Start from scratch', icon: '✨' },
+    { id: 'cricket', name: 'Cricket', description: 'Cricket tournament registration', icon: '🏏' },
+    { id: 'football', name: 'Football', description: 'Football league registration', icon: '⚽' },
+    { id: 'basketball', name: 'Basketball', description: 'Basketball team registration', icon: '🏀' },
+  ];
 
-
-  const fetchFormConfig = async () => {
+  const fetchFormConfig = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${API_URL}/form-config`, {
@@ -57,33 +59,111 @@ const FormBuilderPage: React.FC = () => {
       });
       setFormTitle(response.data.formTitle);
       setFormDescription(response.data.formDescription);
-      setSportType(response.data.sportType);
-      setFields(response.data.fields);
+      
+      // Auto-fix regNo to be optional
+      const updatedFields = response.data.fields.map((field: FormField) => 
+        field.fieldName === 'regNo' ? { ...field, required: false } : field
+      );
+      setFields(updatedFields);
     } catch (error) {
       console.error('Error fetching form config:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL]);
 
-
-  const fetchTemplates = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/form-config/templates`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setTemplates(response.data);
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-    }
-  };
-
-
-  const loadTemplate = async (templateId: string) => {
-    if (!window.confirm('This will replace your current form configuration. Continue?')) {
+  useEffect(() => {
+    if (!isAuctioneer) {
+      navigate('/login');
       return;
     }
+    fetchFormConfig();
+  }, [isAuctioneer, navigate, fetchFormConfig]);
+
+  const addField = (type: string) => {
+    // Smart defaults based on field type
+    const fieldDefaults: Record<string, { name: string; label: string; placeholder: string }> = {
+      text: { name: 'customText', label: 'Text Field', placeholder: 'Enter text here...' },
+      number: { name: 'age', label: 'Age', placeholder: 'Enter age...' },
+      email: { name: 'email', label: 'Email Address', placeholder: 'example@email.com' },
+      tel: { name: 'phone', label: 'Phone Number', placeholder: '+1 (555) 000-0000' },
+      date: { name: 'dateField', label: 'Date', placeholder: 'Select date...' },
+      select: { name: 'category', label: 'Category', placeholder: 'Select an option...' },
+      textarea: { name: 'notes', label: 'Additional Notes', placeholder: 'Enter additional information...' },
+      file: { name: 'document', label: 'Upload Document', placeholder: 'Choose file...' },
+    };
+
+    const defaults = fieldDefaults[type] || { name: 'field', label: 'New Field', placeholder: 'Enter value...' };
+    const timestamp = Date.now();
+
+    const newField: FormField = {
+      fieldName: `${defaults.name}_${timestamp}`,
+      fieldLabel: defaults.label,
+      fieldType: type,
+      required: false,
+      placeholder: defaults.placeholder,
+      options: type === 'select' ? ['Option 1', 'Option 2', 'Option 3'] : [],
+      order: fields.length + 1
+    };
+    setFields([...fields, newField]);
+    setShowAddField(false);
+  };
+
+  const updateField = (index: number, updates: Partial<FormField>) => {
+    const newFields = [...fields];
+    newFields[index] = { ...newFields[index], ...updates };
+    setFields(newFields);
+  };
+
+  const removeField = (index: number) => {
+    const field = fields[index];
+    if (['name', 'photo'].includes(field.fieldName)) {
+      return;
+    }
+    setFields(fields.filter((_, i) => i !== index));
+  };
+
+  const moveField = (index: number, direction: 'up' | 'down') => {
+    const newFields = [...fields];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newFields.length) return;
+    [newFields[index], newFields[targetIndex]] = [newFields[targetIndex], newFields[index]];
+    setFields(newFields);
+  };
+
+  const handleSave = async () => {
+    if (fields.length === 0) {
+      return;
+    }
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/form-config`,
+        { formTitle, formDescription, fields: fields.map((f, i) => ({ ...f, order: i + 1 })) },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      navigate('/players');
+    } catch (error: any) {
+      console.error('Error saving form:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const loadTemplate = async (templateId: string) => {
+    // Handle custom template - reset to default fields
+    if (templateId === 'custom') {
+      setFormTitle('Player Registration');
+      setFormDescription('Fill in your details to register');
+      setFields([
+        { fieldName: 'photo', fieldLabel: 'Player Photo', fieldType: 'file', required: true, order: 1 },
+        { fieldName: 'name', fieldLabel: 'Player Name', fieldType: 'text', required: true, placeholder: 'Enter full name', order: 2 },
+        { fieldName: 'regNo', fieldLabel: 'Registration Number', fieldType: 'text', required: false, placeholder: 'Optional ID', order: 3 }
+      ]);
+      return;
+    }
+    
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
@@ -93,572 +173,324 @@ const FormBuilderPage: React.FC = () => {
       );
       setFormTitle(response.data.formConfig.formTitle);
       setFormDescription(response.data.formConfig.formDescription);
-      setSportType(response.data.formConfig.sportType);
-      setFields(response.data.formConfig.fields);
-      alert('Template loaded successfully!');
-    } catch (error: any) {
-      alert('Error loading template: ' + (error.response?.data?.error || error.message));
-    }
-  };
-
-
-  const addField = () => {
-    const newField: FormField = {
-      fieldName: `field${fields.length + 1}`,
-      fieldLabel: 'New Field',
-      fieldType: 'text',
-      required: false,
-      placeholder: '',
-      options: [],
-      order: fields.length + 1
-    };
-    setFields((prev) => [...prev, newField]);
-  };
-
-
-  const updateField = (index: number, updates: Partial<FormField>) => {
-    setFields((prev) => {
-      const copy = [...prev];
-      copy[index] = { ...copy[index], ...updates };
-      return copy;
-    });
-  };
-
-
-  const removeField = (index: number) => {
-    setFields((prev) => {
-      const field = prev[index];
-      if (['name', 'regNo', 'photo'].includes(field.fieldName)) {
-        alert('Cannot remove required system fields (name, regNo, photo)');
-        return prev;
-      }
-      return prev.filter((_, i) => i !== index);
-    });
-  };
-
-
-  const moveField = (index: number, direction: 'up' | 'down') => {
-    setFields((prev) => {
-      const newFields = [...prev];
-      const targetIndex = direction === 'up' ? index - 1 : index + 1;
-      if (targetIndex < 0 || targetIndex >= newFields.length) return prev;
-      [newFields[index], newFields[targetIndex]] = [newFields[targetIndex], newFields[index]];
-      newFields.forEach((field, i) => (field.order = i + 1));
-      return newFields;
-    });
-  };
-
-
-  const handleSave = async () => {
-    if (fields.length === 0) {
-      alert('Please add at least one field');
-      return;
-    }
-    const hasName = fields.some((f) => f.fieldName === 'name');
-    const hasRegNo = fields.some((f) => f.fieldName === 'regNo');
-    const hasPhoto = fields.some((f) => f.fieldName === 'photo');
-    if (!hasName || !hasRegNo || !hasPhoto) {
-      alert('Form must include name, registration number, and photo fields');
-      return;
-    }
-    setSaving(true);
-    try {
-      const token = localStorage.getItem('token');
-      await axios.post(
-        `${API_URL}/form-config`,
-        {
-          formTitle,
-          formDescription,
-          sportType,
-          fields: fields.map((f, i) => ({ ...f, order: i + 1 }))
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
+      
+      // Ensure regNo is always optional
+      const updatedFields = response.data.formConfig.fields.map((field: FormField) => 
+        field.fieldName === 'regNo' ? { ...field, required: false } : field
       );
-      alert('Form configuration saved successfully!');
-      navigate('/players');
+      setFields(updatedFields);
     } catch (error: any) {
-      alert('Error saving form: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setSaving(false);
+      console.error('Error loading template:', error);
     }
   };
-
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 mx-auto mb-4 rounded-full border-2 border-slate-800 border-t-amber-500 animate-spin" />
-          <p className="text-sm text-slate-400 tracking-wide">Initializing Form Builder...</p>
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
+          <p className="text-slate-400">Loading form builder...</p>
         </div>
       </div>
     );
   }
 
-
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 overflow-hidden">
-      {/* Fixed Header */}
-      <header className="flex-shrink-0 bg-slate-950/95 backdrop-blur-md border-b border-slate-800/60 shadow-lg z-50">
-        <div className="max-w-[1920px] mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-amber-300">Form Builder</h1>
-              <p className="text-sm text-slate-400 mt-0.5">
-                Configure registration form fields and structure
-              </p>
+    <div className="h-full flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      
+      {/* Header - Premium Rose-Gold & Black */}
+      <div className="flex-shrink-0 bg-gradient-to-r from-rose-950 via-black to-rose-950 border-b border-rose-500/20 shadow-2xl shadow-rose-900/30">
+        <div className="max-w-7xl mx-auto px-8 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-1 h-8 bg-gradient-to-b from-rose-400 via-pink-500 to-rose-600 rounded-full shadow-lg shadow-rose-500/50"></div>
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-rose-300 via-pink-400 to-rose-400 bg-clip-text text-transparent tracking-wide">REGISTRATION DESIGNER</h1>
+                <p className="text-xs text-rose-400/50 tracking-wider mt-0.5 font-light">Craft Your Elite Form</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate(-1)}
+                className="px-5 py-2 bg-black/60 border border-rose-900/40 text-rose-200/70 hover:text-rose-300 hover:border-rose-600/50 hover:bg-rose-950/30 rounded-lg transition-all duration-300 font-medium text-sm backdrop-blur-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-6 py-2 bg-gradient-to-r from-rose-600 via-pink-500 to-rose-600 hover:from-rose-500 hover:via-pink-400 hover:to-rose-500 text-white font-bold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-rose-900/60 hover:shadow-xl hover:shadow-rose-800/70 border border-rose-400/40"
+              >
+                {saving ? '⏳ Saving...' : '💾 Save Form'}
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Premium Secondary Button */}
-            <button
-              onClick={() => navigate('/')}
-              className="group relative px-6 py-2.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-medium rounded-lg border border-slate-600/50 transition-all duration-300 overflow-hidden"
-            >
-              <span className="relative z-10">Return</span>
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-700/0 via-slate-600/20 to-slate-700/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </button>
-            
-            {/* Premium Primary Button */}
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="group relative px-7 py-2.5 font-semibold rounded-lg overflow-hidden transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 transition-all duration-300" />
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="absolute inset-0 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3)]" />
-              <span className="relative z-10 text-slate-900 text-sm flex items-center gap-2">
-                {saving ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Applying...
-                  </>
-                ) : (
-                  'Save Configuration'
-                )}
-              </span>
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 shadow-lg shadow-amber-500/30 transition-opacity duration-300" />
-            </button>
-          </div>
         </div>
-      </header>
+      </div>
 
-
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-hidden flex">
-        {/* Left Sidebar */}
-        <aside className="w-80 flex-shrink-0 border-r border-slate-800/60 bg-slate-900/40 overflow-y-auto custom-scrollbar">
-          <div className="p-6 space-y-6">
-            {/* Form Settings */}
-            <section>
-              <h2 className="text-lg font-semibold text-amber-300 mb-4">Form Configuration</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wide">
-                    Form Title
-                  </label>
-                  <input
-                    type="text"
-                    value={formTitle}
-                    onChange={(e) => setFormTitle(e.target.value)}
-                    className="w-full px-4 py-2.5 text-sm bg-slate-800/60 border-2 border-slate-700/80 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/60 focus:bg-slate-800/80 transition-all"
-                    placeholder="e.g., Professional Player Registration"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wide">
-                    Form Description
-                  </label>
-                  <textarea
-                    value={formDescription}
-                    onChange={(e) => setFormDescription(e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-2.5 text-sm bg-slate-800/60 border-2 border-slate-700/80 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/60 focus:bg-slate-800/80 resize-none transition-all"
-                    placeholder="Provide a brief overview of the registration requirements..."
-                  />
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto scrollbar-custom">
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="grid grid-cols-12 gap-6">
+            
+            {/* Left Sidebar */}
+            <div className="col-span-3 space-y-4">
+              
+              {/* Form Settings */}
+              <div className="bg-gradient-to-br from-slate-950 to-black rounded-xl border border-amber-800/30 p-5 shadow-2xl shadow-amber-900/10">
+                <h2 className="text-lg font-bold bg-gradient-to-r from-amber-300 via-orange-400 to-amber-400 bg-clip-text text-transparent mb-4 flex items-center gap-2">
+                  <span className="text-xl">⚙️</span>
+                  Settings
+                </h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">Form Title</label>
+                    <input
+                      type="text"
+                      value={formTitle}
+                      onChange={(e) => setFormTitle(e.target.value)}
+                      className="w-full px-3 py-2 bg-black/50 border border-amber-800/40 rounded-lg text-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-amber-600/50 transition-all placeholder:text-slate-600"
+                      placeholder="e.g., Player Registration"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">Description</label>
+                    <textarea
+                      value={formDescription}
+                      onChange={(e) => setFormDescription(e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 bg-black/50 border border-amber-800/40 rounded-lg text-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-amber-600/50 resize-none transition-all placeholder:text-slate-600"
+                      placeholder="Brief description..."
+                    />
+                  </div>
                 </div>
               </div>
-            </section>
 
-
-            {/* Templates */}
-            <section>
-              <h2 className="text-lg font-semibold text-amber-300 mb-4">Template Library</h2>
-              <div className="space-y-2">
-                {templates.length === 0 ? (
-                  <div className="text-center py-6 px-4 border border-dashed border-slate-700/60 rounded-lg bg-slate-800/20">
-                    <p className="text-xs text-slate-500">No templates available</p>
-                  </div>
-                ) : (
-                  templates.map((template) => (
+              {/* Templates */}
+              <div className="bg-gradient-to-br from-slate-950 to-black rounded-xl border border-amber-800/30 p-5 shadow-2xl shadow-amber-900/10">
+                <h2 className="text-lg font-bold bg-gradient-to-r from-amber-300 via-orange-400 to-amber-400 bg-clip-text text-transparent mb-4 flex items-center gap-2">
+                  <span className="text-xl">📋</span>
+                  Templates
+                </h2>
+                <div className="space-y-2">
+                  {templates.map((template) => (
                     <button
                       key={template.id}
                       onClick={() => loadTemplate(template.id)}
-                      className="group w-full text-left px-4 py-3 bg-slate-800/40 hover:bg-slate-800/70 border border-slate-700/60 hover:border-amber-500/40 rounded-lg transition-all duration-300"
+                      className="w-full text-left px-3 py-3 bg-black/50 hover:bg-amber-950/30 border border-amber-900/30 hover:border-amber-600/60 rounded-lg transition-all duration-300 group backdrop-blur-sm"
                     >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-slate-100 text-sm group-hover:text-amber-300 transition-colors">
-                            {template.name}
-                          </p>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            {template.fieldCount} field{template.fieldCount !== 1 ? 's' : ''}
-                          </p>
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{template.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-amber-200 text-sm group-hover:text-amber-300 transition-colors">{template.name}</p>
+                          <p className="text-xs text-slate-500 truncate">{template.description}</p>
                         </div>
-                        <span className="text-xs px-3 py-1.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium group-hover:bg-amber-500/25 transition-colors">
-                          Apply
-                        </span>
                       </div>
                     </button>
-                  ))
-                )}
+                  ))}
+                </div>
               </div>
-            </section>
-          </div>
-        </aside>
 
-
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto custom-scrollbar">
-          <div className="max-w-5xl mx-auto p-8">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <h2 className="text-xl font-bold text-amber-300">Field Configuration</h2>
-                <span className="px-3 py-1.5 bg-amber-500/15 border border-amber-500/30 rounded-full text-sm text-amber-200 font-medium">
-                  {fields.length} {fields.length === 1 ? 'Field' : 'Fields'}
-                </span>
-              </div>
-              
-              {/* Premium Add Button */}
-              <button
-                onClick={addField}
-                className="group relative px-5 py-2.5 font-semibold rounded-lg overflow-hidden transition-all duration-300"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500" />
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="absolute inset-0 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3)]" />
-                <span className="relative z-10 text-slate-900 text-sm flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Add Field
-                </span>
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 shadow-lg shadow-amber-500/30 transition-opacity duration-300" />
-              </button>
-            </div>
-
-
-            {/* Fields List */}
-            <div className="space-y-5">
-              {fields.length === 0 ? (
-                <div className="bg-slate-900/40 border-2 border-dashed border-slate-700/60 rounded-2xl p-16 text-center">
-                  <div className="max-w-md mx-auto">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-center">
-                      <svg className="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-lg font-semibold text-slate-300 mb-2">No Fields Configured</h3>
-                    <p className="text-sm text-slate-500 mb-8">
-                      Begin by adding custom fields or load a pre-configured template
-                    </p>
-                    <button
-                      onClick={addField}
-                      className="group relative px-6 py-3 font-semibold rounded-lg overflow-hidden transition-all duration-300"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500" />
-                      <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      <span className="relative z-10 text-slate-900 text-sm">Create First Field</span>
-                    </button>
+              {/* Quick Tip */}
+              <div className="bg-gradient-to-br from-orange-500/10 via-amber-500/10 to-orange-600/10 border border-orange-500/40 rounded-xl p-4 shadow-lg shadow-orange-900/20">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">💡</span>
+                  <div>
+                    <h3 className="text-sm font-bold bg-gradient-to-r from-orange-300 to-amber-400 bg-clip-text text-transparent mb-1">Pro Tip</h3>
+                    <p className="text-xs text-orange-100/70">Click "Add Field" to craft your form. Protected fields maintain form integrity.</p>
                   </div>
                 </div>
-              ) : (
-                fields.map((field, index) => {
-                  const isProtected = ['name', 'photo'].includes(field.fieldName);
-                  return (
-                    <div
-                      key={index}
-                      className="bg-slate-900/50 border border-slate-800/60 rounded-xl overflow-hidden hover:border-slate-700/80 transition-all duration-300"
-                    >
-                      {/* Field Header */}
-                      <div className="bg-slate-950/40 px-5 py-3.5 flex items-center justify-between border-b border-slate-800/60">
-                        <div className="flex items-center gap-3">
-                          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/15 text-amber-300 text-sm font-bold border border-amber-500/30">
-                            {index + 1}
-                          </span>
-                          <div>
-                            <span className="text-base font-semibold text-slate-100">
-                              {field.fieldLabel || 'Untitled Field'}
-                            </span>
-                            <span className="ml-2 text-xs text-slate-500 font-mono">
-                              {field.fieldName || 'no-identifier'}
-                            </span>
-                          </div>
-                          {isProtected && (
-                            <span className="px-2.5 py-1 rounded-md bg-blue-500/15 border border-blue-500/30 text-xs text-blue-300 font-semibold">
-                              System Required
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {/* Icon Buttons */}
-                          <button
-                            onClick={() => moveField(index, 'up')}
-                            disabled={index === 0}
-                            className="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-700/80 border border-slate-700/60 hover:border-slate-600 text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
-                            title="Move field up"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => moveField(index, 'down')}
-                            disabled={index === fields.length - 1}
-                            className="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-700/80 border border-slate-700/60 hover:border-slate-600 text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
-                            title="Move field down"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => removeField(index)}
-                            disabled={isProtected}
-                            className="p-2 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 hover:border-red-500/50 text-red-400 hover:text-red-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
-                            title={isProtected ? 'System field cannot be removed' : 'Remove field'}
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-
-
-                      {/* Field Content */}
-                      <div className="p-6 space-y-5">
-                        {/* Row 1 */}
-                        <div className="grid grid-cols-2 gap-5">
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-300 mb-2.5 uppercase tracking-wide">
-                              Field Identifier
-                            </label>
-                            <input
-                              type="text"
-                              value={field.fieldName}
-                              onChange={(e) => updateField(index, { fieldName: e.target.value })}
-                              disabled={isProtected}
-                              className="w-full px-4 py-2.5 text-sm bg-slate-800/60 border-2 border-slate-700/80 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/60 focus:bg-slate-800/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                              placeholder="e.g., playerPosition"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-300 mb-2.5 uppercase tracking-wide">
-                              Display Label
-                            </label>
-                            <input
-                              type="text"
-                              value={field.fieldLabel}
-                              onChange={(e) => updateField(index, { fieldLabel: e.target.value })}
-                              className="w-full px-4 py-2.5 text-sm bg-slate-800/60 border-2 border-slate-700/80 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/60 focus:bg-slate-800/80 transition-all"
-                              placeholder="e.g., Player Position"
-                            />
-                          </div>
-                        </div>
-
-
-                        {/* Row 2 */}
-                        <div className="grid grid-cols-2 gap-5">
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-300 mb-2.5 uppercase tracking-wide">
-                              Input Type
-                            </label>
-                            <select
-                              value={field.fieldType}
-                              onChange={(e) => updateField(index, { fieldType: e.target.value })}
-                              disabled={isProtected}
-                              className="w-full px-4 py-2.5 text-sm bg-slate-800/60 border-2 border-slate-700/80 rounded-lg text-slate-100 focus:outline-none focus:border-amber-500/60 focus:bg-slate-800/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                            >
-                              <option value="text">Text Input</option>
-                              <option value="number">Numeric Input</option>
-                              <option value="select">Dropdown Selection</option>
-                              <option value="textarea">Multi-line Text</option>
-                              <option value="date">Date Selection</option>
-                              <option value="email">Email Address</option>
-                              <option value="tel">Phone Number</option>
-                              <option value="file">File Upload</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-300 mb-2.5 uppercase tracking-wide">
-                              Placeholder Text
-                            </label>
-                            <input
-                              type="text"
-                              value={field.placeholder || ''}
-                              onChange={(e) => updateField(index, { placeholder: e.target.value })}
-                              className="w-full px-4 py-2.5 text-sm bg-slate-800/60 border-2 border-slate-700/80 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/60 focus:bg-slate-800/80 transition-all"
-                              placeholder="Enter descriptive hint text..."
-                            />
-                          </div>
-                        </div>
-
-
-                        {/* Dropdown Options */}
-                        {field.fieldType === 'select' && (
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-300 mb-2.5 uppercase tracking-wide">
-                              Selection Options
-                              <span className="ml-2 text-[10px] text-slate-500 font-normal normal-case">
-                                (separate with commas)
-                              </span>
-                            </label>
-                            <textarea
-                              rows={3}
-                              key={`options-${index}`}
-                              defaultValue={(field.options || []).join(', ')}
-                              onBlur={(e) => {
-                                const options = e.target.value
-                                  .split(',')
-                                  .map((s) => s.trim())
-                                  .filter(Boolean);
-                                updateField(index, { options });
-                              }}
-                              className="w-full px-4 py-2.5 text-sm bg-slate-800/60 border-2 border-slate-700/80 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/60 focus:bg-slate-800/80 transition-all resize-none"
-                              placeholder="Forward, Midfielder, Defender, Goalkeeper"
-                            />
-                            {field.options && field.options.length > 0 && (
-                              <div className="mt-3 p-4 bg-slate-800/40 border border-slate-700/60 rounded-lg">
-                                <p className="text-xs text-slate-400 mb-3 font-medium">
-                                  Options Preview · {field.options.length} {field.options.length === 1 ? 'option' : 'options'}
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                  {field.options.map((opt, optIdx) => (
-                                    <span
-                                      key={optIdx}
-                                      className="inline-flex items-center px-3 py-1.5 text-xs bg-amber-500/15 border border-amber-500/30 text-amber-300 rounded-md font-medium"
-                                    >
-                                      {opt}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-
-                        {/* Required Checkbox */}
-                        <div className="pt-4 border-t border-slate-800/60">
-                          <label className="flex items-center gap-3 cursor-pointer group">
-                            <input
-                              type="checkbox"
-                              checked={field.required}
-                              onChange={(e) => updateField(index, { required: e.target.checked })}
-                              disabled={isProtected}
-                              className="w-4 h-4 rounded border-slate-600 text-amber-500 focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all"
-                            />
-                            <span className="text-sm text-slate-300 group-hover:text-slate-100 transition-colors">
-                              Mandatory field
-                            </span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+              </div>
             </div>
 
+            {/* Main Content Area */}
+            <div className="col-span-9 space-y-4">
+              
+              {/* Header */}
+              <div className="bg-gradient-to-br from-slate-950 to-black rounded-xl border border-yellow-600/40 p-5 shadow-2xl shadow-yellow-900/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold bg-gradient-to-r from-yellow-200 via-amber-300 to-yellow-400 bg-clip-text text-transparent flex items-center gap-2">
+                      <span className="text-2xl">🎨</span>
+                      Form Fields
+                      <span className="ml-2 px-2.5 py-0.5 bg-gradient-to-r from-yellow-500/30 to-amber-400/30 border border-yellow-500/50 text-yellow-300 rounded-lg text-sm font-bold shadow-lg shadow-yellow-900/30">
+                        {fields.length}
+                      </span>
+                    </h2>
+                    <p className="text-sm text-yellow-200/60 mt-1">Craft your elite registration</p>
+                  </div>
+                  <button
+                    onClick={() => setShowAddField(!showAddField)}
+                    className="px-6 py-3 bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-500 hover:from-yellow-400 hover:via-amber-300 hover:to-yellow-400 text-black font-extrabold rounded-lg shadow-lg shadow-yellow-900/60 hover:shadow-xl hover:shadow-yellow-800/70 transition-all duration-300 transform hover:scale-105 border border-yellow-400/50"
+                  >
+                    ✨ Add Field
+                  </button>
+                </div>
 
-            {/* Add Another Field Button */}
-            {fields.length > 0 && (
-              <div className="mt-6">
-                <button
-                  onClick={addField}
-                  className="w-full px-6 py-4 text-sm bg-slate-800/40 hover:bg-slate-800/60 border-2 border-dashed border-slate-700/60 hover:border-amber-500/40 text-slate-400 hover:text-amber-300 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 font-medium"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Add Additional Field
-                </button>
+                {/* Field Type Selector */}
+                {showAddField && (
+                  <div className="mt-4 pt-4 border-t border-yellow-700/40">
+                    <p className="text-sm font-medium text-yellow-300/80 mb-3">Select field type:</p>
+                    <div className="grid grid-cols-4 gap-3">
+                      {FIELD_TYPES.map((type) => (
+                        <button
+                          key={type.value}
+                          onClick={() => addField(type.value)}
+                          className="flex flex-col items-center gap-2 p-4 bg-black/50 hover:bg-yellow-900/20 border border-yellow-900/40 hover:border-yellow-500/70 rounded-lg transition-all duration-300 group backdrop-blur-sm shadow-lg hover:shadow-yellow-900/40"
+                        >
+                          <span className="text-3xl group-hover:scale-110 transition-transform duration-300">{type.icon}</span>
+                          <span className="text-xs font-semibold text-yellow-100/70 group-hover:text-yellow-300 transition-colors">{type.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
 
+              {/* Fields List */}
+              <div className="space-y-3">
+                {fields.length === 0 ? (
+                  <div className="bg-gradient-to-br from-slate-950 to-black border-2 border-dashed border-yellow-700/50 rounded-xl p-20 text-center shadow-2xl shadow-yellow-900/20">
+                    <div className="text-6xl mb-4">📝</div>
+                    <h3 className="text-xl font-bold bg-gradient-to-r from-yellow-200 to-amber-400 bg-clip-text text-transparent mb-2">No Fields Yet</h3>
+                    <p className="text-yellow-200/60 mb-6">Click "Add Field" above to craft your elite form</p>
+                    <button
+                      onClick={() => setShowAddField(true)}
+                      className="px-6 py-3 bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-500 hover:from-yellow-400 hover:via-amber-300 hover:to-yellow-400 text-black font-extrabold rounded-lg shadow-lg shadow-yellow-900/60 hover:shadow-xl hover:shadow-yellow-800/70 transition-all duration-300 border border-yellow-400/50"
+                    >
+                      ✨ Add First Field
+                    </button>
+                  </div>
+                ) : (
+                  fields.map((field, index) => {
+                    const isProtected = ['name', 'photo'].includes(field.fieldName);
+                    const isEditing = editingIndex === index;
+                    const fieldType = FIELD_TYPES.find(t => t.value === field.fieldType);
+                    
+                    return (
+                      <div
+                        key={index}
+                        className={`bg-gradient-to-br from-slate-950 to-black border rounded-xl overflow-hidden shadow-xl transition-all duration-300 ${
+                          isEditing ? 'border-yellow-500 ring-2 ring-yellow-500/50 shadow-yellow-900/40' : 'border-yellow-900/30 hover:border-yellow-700/60 shadow-yellow-900/10'
+                        }`}
+                      >
+                        {/* Field Header */}
+                        <div className="p-4 flex items-center justify-between bg-black/40 backdrop-blur-sm">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <span className="text-2xl">{fieldType?.icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-sm font-bold text-yellow-100 truncate">{field.fieldLabel}</h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs text-yellow-500/70 font-mono">{field.fieldName}</span>
+                                {field.required && <span className="px-2 py-0.5 bg-yellow-500/25 text-yellow-300 rounded text-xs font-medium border border-yellow-500/40 shadow-sm">Required</span>}
+                                {isProtected && <span className="px-2 py-0.5 bg-cyan-400/20 text-cyan-300 rounded text-xs font-medium border border-cyan-400/30 shadow-sm">System</span>}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setEditingIndex(isEditing ? null : index)}
+                              className="p-2 hover:bg-yellow-900/30 rounded-lg text-yellow-400/70 hover:text-yellow-300 transition-all duration-300"
+                              title="Edit"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => moveField(index, 'up')}
+                              disabled={index === 0}
+                              className="p-2 hover:bg-yellow-900/30 rounded-lg text-yellow-400/70 hover:text-yellow-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300"
+                              title="Move up"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => moveField(index, 'down')}
+                              disabled={index === fields.length - 1}
+                              className="p-2 hover:bg-yellow-900/30 rounded-lg text-yellow-400/70 hover:text-yellow-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300"
+                              title="Move down"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => removeField(index)}
+                              disabled={isProtected}
+                              className="p-2 hover:bg-red-900/30 rounded-lg text-red-400/70 hover:text-red-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300"
+                              title={isProtected ? 'Cannot remove system field' : 'Delete'}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
 
-            <div className="h-20"></div>
-          </div>
-        </main>
-      </div>
+                        {/* Edit Panel - Simplified */}
+                        {isEditing && (
+                          <div className="p-4 bg-black/40 border-t border-yellow-800/40 space-y-3 backdrop-blur-sm">
+                            <div>
+                              <label className="block text-xs font-medium text-yellow-300/80 mb-1.5">Field Label</label>
+                              <input
+                                type="text"
+                                value={field.fieldLabel}
+                                onChange={(e) => updateField(index, { fieldLabel: e.target.value })}
+                                className="w-full px-3 py-2 text-sm bg-black/50 border border-yellow-700/50 rounded-lg text-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500/60 transition-all placeholder:text-slate-600"
+                                placeholder="What should this field be called?"
+                              />
+                            </div>
 
+                            {field.fieldType === 'select' && (
+                              <div>
+                                <label className="block text-xs font-medium text-yellow-300/80 mb-1.5">Options (comma-separated)</label>
+                                <input
+                                  type="text"
+                                  defaultValue={(field.options || []).join(', ')}
+                                  onBlur={(e) => {
+                                    const options = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                                    updateField(index, { options });
+                                  }}
+                                  className="w-full px-3 py-2 text-sm bg-black/50 border border-yellow-700/50 rounded-lg text-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500/60 transition-all placeholder:text-slate-600"
+                                  placeholder="Option 1, Option 2, Option 3"
+                                />
+                              </div>
+                            )}
 
-      {/* Footer */}
-      <footer className="flex-shrink-0 bg-slate-950/95 backdrop-blur-md border-t border-slate-800/60 shadow-lg z-50">
-        <div className="max-w-[1920px] mx-auto px-6 py-4 flex items-center justify-between">
-          <p className="text-xs text-slate-500 flex items-center gap-2">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500/60 animate-pulse"></span>
-            Changes are not persisted automatically
-          </p>
-          <div className="flex items-center gap-3">
-            {/* Secondary Footer Button */}
-            <button
-              onClick={() => navigate('/')}
-              className="group relative px-5 py-2.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-medium rounded-lg border border-slate-600/50 transition-all duration-300 overflow-hidden"
-            >
-              <span className="relative z-10">Discard</span>
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-700/0 via-slate-600/20 to-slate-700/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </button>
-            
-            {/* Primary Footer Button */}
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="group relative px-8 py-2.5 font-semibold rounded-lg overflow-hidden transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500" />
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="absolute inset-0 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.3)]" />
-              <span className="relative z-10 text-slate-900 text-sm">
-                {saving ? 'Applying...' : 'Apply Configuration'}
-              </span>
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 shadow-lg shadow-amber-500/30 transition-opacity duration-300" />
-            </button>
+                            <label className="flex items-center gap-2 p-3 bg-yellow-900/15 border border-yellow-800/40 rounded-lg cursor-pointer hover:bg-yellow-900/25 hover:border-yellow-600/60 transition-all duration-300">
+                              <input
+                                type="checkbox"
+                                checked={field.required}
+                                onChange={(e) => updateField(index, { required: e.target.checked })}
+                                disabled={isProtected}
+                                className="w-4 h-4 rounded border-yellow-600 text-yellow-500 focus:ring-2 focus:ring-yellow-500 disabled:opacity-50 cursor-pointer bg-black/50"
+                              />
+                              <span className="text-sm font-medium text-yellow-100/90">Make this field required</span>
+                            </label>
+
+                            <button
+                              onClick={() => setEditingIndex(null)}
+                              className="w-full px-4 py-2.5 bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-500 hover:from-yellow-400 hover:via-amber-300 hover:to-yellow-400 text-black font-extrabold rounded-lg transition-all duration-300 shadow-lg shadow-yellow-900/60 hover:shadow-xl hover:shadow-yellow-800/70 border border-yellow-400/50"
+                            >
+                              ✓ Done Editing
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </footer>
-
-
-      {/* Scrollbar */}
-      <style>{`
-        .custom-scrollbar {
-          scrollbar-width: thin;
-          scrollbar-color: rgba(251, 191, 36, 0.4) transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-          height: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(251, 191, 36, 0.3);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(251, 191, 36, 0.5);
-        }
-      `}</style>
+      </div>
     </div>
   );
 };
-
 
 export default FormBuilderPage;

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { Player } from '../types';
 import RegistrationLinkGenerator from '../components/RegistrationLinkGenerator';
 import EditPlayerModal from '../components/EditPlayerModal';
 import { useAuth } from '../contexts/AuthContext';
-import { playerService } from '../services/api';
+import { playerService, clearCache } from '../services/api';
 
 const PlayersPage: React.FC = () => {
   const { isAuctioneer } = useAuth();
@@ -16,10 +16,10 @@ const PlayersPage: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
 
-  const fetchPlayers = async () => {
+  const fetchPlayers = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await playerService.getAllPlayers();
+      const data = await playerService.getAllPlayers(true); // Use cache
       setPlayers(data);
       
       // Debug: Log first player's photo URL to check conversion
@@ -32,13 +32,13 @@ const PlayersPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchPlayers();
-  }, []);
+  }, [fetchPlayers]);
 
-  const handleDeletePlayer = async (playerId: string) => {
+  const handleDeletePlayer = useCallback(async (playerId: string) => {
     if (!window.confirm('Are you sure you want to delete this player? This action cannot be undone.')) {
       return;
     }
@@ -47,16 +47,20 @@ const PlayersPage: React.FC = () => {
       await axios.delete(`${BACKEND_URL}/api/players/${playerId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      clearCache(); // Clear cache after deletion
       fetchPlayers();
     } catch (error) {
       console.error('Error deleting player:', error);
       alert('Failed to delete player');
     }
-  };
+  }, [fetchPlayers]);
 
-  const filteredPlayers = filter === 'all' 
-    ? players 
-    : players.filter(p => p.status === filter);
+  const filteredPlayers = useMemo(() => 
+    filter === 'all' 
+      ? players 
+      : players.filter(p => p.status === filter),
+    [filter, players]
+  );
 
   const statusConfig = {
     available: { 
@@ -116,47 +120,55 @@ const PlayersPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all shadow-lg"
+                className="group relative flex items-center gap-2.5 px-6 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 overflow-hidden"
                 style={{
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
                   color: 'white',
-                  border: '1px solid rgba(16, 185, 129, 0.3)'
+                  border: '2px solid rgba(16, 185, 129, 0.5)',
+                  boxShadow: '0 8px 32px rgba(16, 185, 129, 0.4), 0 0 60px rgba(16, 185, 129, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                  e.currentTarget.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.4)';
+                  e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)';
+                  e.currentTarget.style.boxShadow = '0 12px 48px rgba(16, 185, 129, 0.6), 0 0 80px rgba(16, 185, 129, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3)';
+                  e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.8)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.3)';
+                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                  e.currentTarget.style.boxShadow = '0 8px 32px rgba(16, 185, 129, 0.4), 0 0 60px rgba(16, 185, 129, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)';
+                  e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.5)';
                 }}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-700 ease-out" style={{ transform: 'translateX(-100%)' }}></div>
+                <svg className="w-5 h-5 relative z-10 drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                 </svg>
-                Add Player
+                <span className="relative z-10 tracking-wide drop-shadow-md">Add Player</span>
               </button>
               <Link
                 to="/form-builder"
-                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all shadow-lg"
+                className="group relative flex items-center gap-2.5 px-6 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 overflow-hidden"
                 style={{
-                  background: 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)',
+                  background: 'linear-gradient(135deg, #d97706 0%, #f59e0b 50%, #fbbf24 100%)',
                   color: '#1e293b',
-                  border: '1px solid rgba(251, 191, 36, 0.3)'
+                  border: '2px solid rgba(251, 191, 36, 0.6)',
+                  boxShadow: '0 8px 32px rgba(251, 191, 36, 0.5), 0 0 60px rgba(251, 191, 36, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.3)'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                  e.currentTarget.style.boxShadow = '0 8px 25px rgba(217, 119, 6, 0.4)';
+                  e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)';
+                  e.currentTarget.style.boxShadow = '0 12px 48px rgba(251, 191, 36, 0.7), 0 0 80px rgba(251, 191, 36, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4)';
+                  e.currentTarget.style.borderColor = 'rgba(251, 191, 36, 0.9)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.3)';
+                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                  e.currentTarget.style.boxShadow = '0 8px 32px rgba(251, 191, 36, 0.5), 0 0 60px rgba(251, 191, 36, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.3)';
+                  e.currentTarget.style.borderColor = 'rgba(251, 191, 36, 0.6)';
                 }}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent group-hover:translate-x-full transition-transform duration-700 ease-out" style={{ transform: 'translateX(-100%)' }}></div>
+                <svg className="w-5 h-5 relative z-10 drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
-                Form Builder
+                <span className="relative z-10 tracking-wide drop-shadow-md">Form Builder</span>
               </Link>
               <RegistrationLinkGenerator />
             </div>

@@ -2,6 +2,59 @@ const User = require('../models/user.model');
 const Player = require('../models/player.model');
 const Team = require('../models/team.model');
 
+// @desc    Create new auctioneer account
+// @route   POST /api/admin/auctioneers/create
+// @access  Admin only
+exports.createAuctioneer = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    // Validation
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide name, email, and password'
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        error: 'User with this email already exists'
+      });
+    }
+
+    // Create auctioneer
+    const auctioneer = await User.create({
+      name,
+      email,
+      password,
+      role: 'auctioneer',
+      isActive: true
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        id: auctioneer._id,
+        name: auctioneer.name,
+        email: auctioneer.email,
+        role: auctioneer.role,
+        isActive: auctioneer.isActive
+      },
+      message: 'Auctioneer created successfully'
+    });
+  } catch (error) {
+    console.error('Error creating auctioneer:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Error creating auctioneer'
+    });
+  }
+};
+
 // @desc    Get all auctioneers with their stats
 // @route   GET /api/admin/auctioneers
 // @access  Admin only
@@ -20,8 +73,11 @@ exports.getAllAuctioneers = async (req, res) => {
         
         return {
           ...auctioneer.toObject(),
-          currentPlayers: playerCount,
-          currentTeams: teamCount
+          usage: {
+            totalPlayers: playerCount,
+            totalTeams: teamCount,
+            totalAuctions: 0
+          }
         };
       })
     );
@@ -61,8 +117,11 @@ exports.getAuctioneer = async (req, res) => {
       success: true,
       data: {
         ...auctioneer.toObject(),
-        currentPlayers: playerCount,
-        currentTeams: teamCount
+        usage: {
+          totalPlayers: playerCount,
+          totalTeams: teamCount,
+          totalAuctions: 0
+        }
       }
     });
   } catch (error) {

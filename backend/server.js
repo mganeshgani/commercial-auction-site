@@ -134,6 +134,7 @@ const teamRoutes = require('./routes/team.routes');
 const authRoutes = require('./routes/auth.routes');
 const formConfigRoutes = require('./routes/formConfig.routes');
 const adminRoutes = require('./routes/admin.routes');
+const appConfigRoutes = require('./routes/appConfig.routes');
 
 // Routes
 app.get('/', (req, res) => {
@@ -145,6 +146,7 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/form-config', formConfigRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/config', appConfigRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

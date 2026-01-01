@@ -7,13 +7,13 @@ const sportTemplates = {
     formTitle: 'Cricket Player Registration',
     formDescription: 'Register for the cricket auction',
     fields: [
-      { fieldName: 'name', fieldLabel: 'Player Name', fieldType: 'text', required: true, placeholder: 'Enter full name', order: 1 },
-      { fieldName: 'regNo', fieldLabel: 'Registration Number', fieldType: 'text', required: true, placeholder: 'Unique ID', order: 2 },
-      { fieldName: 'position', fieldLabel: 'Playing Position', fieldType: 'select', required: true, options: ['Batsman', 'Bowler', 'All-rounder', 'Wicket-keeper'], order: 3 },
-      { fieldName: 'class', fieldLabel: 'Class/Category', fieldType: 'text', required: true, placeholder: 'e.g., 10th Grade', order: 4 },
-      { fieldName: 'battingStyle', fieldLabel: 'Batting Style', fieldType: 'select', required: false, options: ['Right-hand', 'Left-hand'], order: 5 },
-      { fieldName: 'bowlingStyle', fieldLabel: 'Bowling Style', fieldType: 'select', required: false, options: ['Fast', 'Medium', 'Spin', 'N/A'], order: 6 },
-      { fieldName: 'photo', fieldLabel: 'Player Photo', fieldType: 'file', required: true, order: 7 }
+      { fieldName: 'photo', fieldLabel: 'Player Photo', fieldType: 'file', required: true, order: 1 },
+      { fieldName: 'name', fieldLabel: 'Player Name', fieldType: 'text', required: true, placeholder: 'Enter full name', order: 2 },
+      { fieldName: 'regNo', fieldLabel: 'Registration Number', fieldType: 'text', required: false, placeholder: 'Optional ID', order: 3 },
+      { fieldName: 'position', fieldLabel: 'Playing Position', fieldType: 'select', required: true, options: ['Batsman', 'Bowler', 'All-rounder', 'Wicket-keeper'], order: 4 },
+      { fieldName: 'class', fieldLabel: 'Class/Category', fieldType: 'text', required: true, placeholder: 'e.g., 10th Grade', order: 5 },
+      { fieldName: 'battingStyle', fieldLabel: 'Batting Style', fieldType: 'select', required: false, options: ['Right-hand', 'Left-hand'], order: 6 },
+      { fieldName: 'bowlingStyle', fieldLabel: 'Bowling Style', fieldType: 'select', required: false, options: ['Fast', 'Medium', 'Spin', 'N/A'], order: 7 }
     ]
   },
   football: {
@@ -21,13 +21,13 @@ const sportTemplates = {
     formTitle: 'Football Player Registration',
     formDescription: 'Register for the football auction',
     fields: [
-      { fieldName: 'name', fieldLabel: 'Player Name', fieldType: 'text', required: true, placeholder: 'Enter full name', order: 1 },
-      { fieldName: 'regNo', fieldLabel: 'Registration Number', fieldType: 'text', required: true, placeholder: 'Unique ID', order: 2 },
-      { fieldName: 'position', fieldLabel: 'Position', fieldType: 'select', required: true, options: ['Goalkeeper', 'Defender', 'Midfielder', 'Forward'], order: 3 },
-      { fieldName: 'class', fieldLabel: 'Class/Category', fieldType: 'text', required: true, placeholder: 'e.g., 10th Grade', order: 4 },
-      { fieldName: 'jerseyNumber', fieldLabel: 'Preferred Jersey Number', fieldType: 'number', required: false, placeholder: '1-99', order: 5 },
-      { fieldName: 'preferredFoot', fieldLabel: 'Preferred Foot', fieldType: 'select', required: false, options: ['Right', 'Left', 'Both'], order: 6 },
-      { fieldName: 'photo', fieldLabel: 'Player Photo', fieldType: 'file', required: true, order: 7 }
+      { fieldName: 'photo', fieldLabel: 'Player Photo', fieldType: 'file', required: true, order: 1 },
+      { fieldName: 'name', fieldLabel: 'Player Name', fieldType: 'text', required: true, placeholder: 'Enter full name', order: 2 },
+      { fieldName: 'regNo', fieldLabel: 'Registration Number', fieldType: 'text', required: false, placeholder: 'Optional ID', order: 3 },
+      { fieldName: 'position', fieldLabel: 'Position', fieldType: 'select', required: true, options: ['Goalkeeper', 'Defender', 'Midfielder', 'Forward'], order: 4 },
+      { fieldName: 'class', fieldLabel: 'Class/Category', fieldType: 'text', required: true, placeholder: 'e.g., 10th Grade', order: 5 },
+      { fieldName: 'jerseyNumber', fieldLabel: 'Preferred Jersey Number', fieldType: 'number', required: false, placeholder: '1-99', order: 6 },
+      { fieldName: 'preferredFoot', fieldLabel: 'Preferred Foot', fieldType: 'select', required: false, options: ['Right', 'Left', 'Both'], order: 7 }
     ]
   },
   basketball: {
@@ -35,13 +35,13 @@ const sportTemplates = {
     formTitle: 'Basketball Player Registration',
     formDescription: 'Register for the basketball auction',
     fields: [
-      { fieldName: 'name', fieldLabel: 'Player Name', fieldType: 'text', required: true, placeholder: 'Enter full name', order: 1 },
-      { fieldName: 'regNo', fieldLabel: 'Registration Number', fieldType: 'text', required: true, placeholder: 'Unique ID', order: 2 },
-      { fieldName: 'position', fieldLabel: 'Position', fieldType: 'select', required: true, options: ['Point Guard', 'Shooting Guard', 'Small Forward', 'Power Forward', 'Center'], order: 3 },
-      { fieldName: 'class', fieldLabel: 'Class/Category', fieldType: 'text', required: true, placeholder: 'e.g., 10th Grade', order: 4 },
-      { fieldName: 'height', fieldLabel: 'Height (cm)', fieldType: 'number', required: false, placeholder: 'e.g., 180', order: 5 },
-      { fieldName: 'jerseyNumber', fieldLabel: 'Preferred Jersey Number', fieldType: 'number', required: false, placeholder: '0-99', order: 6 },
-      { fieldName: 'photo', fieldLabel: 'Player Photo', fieldType: 'file', required: true, order: 7 }
+      { fieldName: 'photo', fieldLabel: 'Player Photo', fieldType: 'file', required: true, order: 1 },
+      { fieldName: 'name', fieldLabel: 'Player Name', fieldType: 'text', required: true, placeholder: 'Enter full name', order: 2 },
+      { fieldName: 'regNo', fieldLabel: 'Registration Number', fieldType: 'text', required: false, placeholder: 'Optional ID', order: 3 },
+      { fieldName: 'position', fieldLabel: 'Position', fieldType: 'select', required: true, options: ['Point Guard', 'Shooting Guard', 'Small Forward', 'Power Forward', 'Center'], order: 4 },
+      { fieldName: 'class', fieldLabel: 'Class/Category', fieldType: 'text', required: true, placeholder: 'e.g., 10th Grade', order: 5 },
+      { fieldName: 'height', fieldLabel: 'Height (cm)', fieldType: 'number', required: false, placeholder: 'e.g., 180', order: 6 },
+      { fieldName: 'jerseyNumber', fieldLabel: 'Preferred Jersey Number', fieldType: 'number', required: false, placeholder: '0-99', order: 7 }
     ]
   },
   general: {
@@ -49,11 +49,11 @@ const sportTemplates = {
     formTitle: 'Player Registration',
     formDescription: 'Register for the auction',
     fields: [
-      { fieldName: 'name', fieldLabel: 'Player Name', fieldType: 'text', required: true, placeholder: 'Enter full name', order: 1 },
-      { fieldName: 'regNo', fieldLabel: 'Registration Number', fieldType: 'text', required: true, placeholder: 'Unique ID', order: 2 },
-      { fieldName: 'position', fieldLabel: 'Position/Role', fieldType: 'text', required: true, placeholder: 'Enter position', order: 3 },
-      { fieldName: 'class', fieldLabel: 'Class/Category', fieldType: 'text', required: true, placeholder: 'e.g., 10th Grade', order: 4 },
-      { fieldName: 'photo', fieldLabel: 'Player Photo', fieldType: 'file', required: true, order: 5 }
+      { fieldName: 'photo', fieldLabel: 'Player Photo', fieldType: 'file', required: true, order: 1 },
+      { fieldName: 'name', fieldLabel: 'Player Name', fieldType: 'text', required: true, placeholder: 'Enter full name', order: 2 },
+      { fieldName: 'regNo', fieldLabel: 'Registration Number', fieldType: 'text', required: false, placeholder: 'Optional ID', order: 3 },
+      { fieldName: 'position', fieldLabel: 'Position/Role', fieldType: 'text', required: true, placeholder: 'Enter position', order: 4 },
+      { fieldName: 'class', fieldLabel: 'Class/Category', fieldType: 'text', required: true, placeholder: 'e.g., 10th Grade', order: 5 }
     ]
   }
 };

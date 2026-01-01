@@ -7,7 +7,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './layouts/Layout';
 import AdminLayout from './layouts/AdminLayout';
 import Login from './pages/Login';
-import Register from './pages/Register';
 import PlayerRegistrationPage from './pages/PlayerRegistrationPage';
 import FormBuilderPage from './pages/FormBuilderPage';
 import AuctionPage from './pages/AuctionPage';
@@ -17,6 +16,7 @@ import UnsoldPage from './pages/UnsoldPage';
 import ResultsPage from './pages/ResultsPage';
 import AdminDashboard from './pages/AdminDashboard';
 import AuctioneersPage from './pages/AuctioneersPage';
+import SettingsPage from './pages/SettingsPage';
 import './App.css';
 
 // Role-based redirect component
@@ -38,7 +38,6 @@ function App() {
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
               <Route path="/player-registration/:token" element={<PlayerRegistrationPage />} />
               
               {/* Root redirect based on role */}
@@ -100,6 +99,13 @@ function App() {
                 <ProtectedRoute requiredRole="auctioneer">
                   <Layout>
                     <FormBuilderPage />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/settings" element={
+                <ProtectedRoute requiredRole="auctioneer">
+                  <Layout>
+                    <SettingsPage />
                   </Layout>
                 </ProtectedRoute>
               } />

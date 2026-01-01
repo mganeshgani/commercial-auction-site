@@ -10,6 +10,7 @@ router.use(protect, isAdmin);
 router.get('/stats', adminController.getDashboardStats);
 
 // Auctioneers management
+router.post('/auctioneers/create', adminController.createAuctioneer);
 router.get('/auctioneers', adminController.getAllAuctioneers);
 router.get('/auctioneers/:id', adminController.getAuctioneer);
 router.put('/auctioneers/:id', adminController.updateAuctioneer);

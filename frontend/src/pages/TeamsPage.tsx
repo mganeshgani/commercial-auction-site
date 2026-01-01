@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { Team } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { teamService, clearCache } from '../services/api';
 
 const TeamsPage: React.FC = () => {
   const { isAuctioneer } = useAuth();
@@ -22,26 +23,23 @@ const TeamsPage: React.FC = () => {
 
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
-  const fetchTeams = async () => {
+  const fetchTeams = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/teams`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setTeams(response.data);
+      const data = await teamService.getAllTeams(true); // Use cache
+      setTeams(data);
     } catch (error) {
       console.error('Error fetching teams:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchTeams();
-  }, []);
+  }, [fetchTeams]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
@@ -61,6 +59,7 @@ const TeamsPage: React.FC = () => {
       } else {
         await axios.post(`${API_URL}/teams`, submitData, { headers });
       }
+      clearCache(); // Clear cache after mutation
       fetchTeams();
       resetForm();
     } catch (error) {
@@ -69,9 +68,9 @@ const TeamsPage: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [formData, logoFile, editingTeam, fetchTeams]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this team?')) return;
     
     try {
@@ -79,11 +78,12 @@ const TeamsPage: React.FC = () => {
       await axios.delete(`${API_URL}/teams/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      clearCache(); // Clear cache after deletion
       fetchTeams();
     } catch (error) {
       console.error('Error deleting team:', error);
     }
-  };
+  }, [fetchTeams]);
 
   const resetForm = () => {
     setFormData({ name: '', totalSlots: 11, budget: 100000 });
@@ -137,14 +137,21 @@ const TeamsPage: React.FC = () => {
     }
   };
 
-  const getBudgetPercentage = (team: Team) => {
+  const getBudgetPercentage = useCallback((team: Team) => {
     const total = team.budget || 0;
     return total > 0 ? (team.remainingBudget / total) * 100 : 0;
-  };
+  }, []);
 
-  const getSlotsPercentage = (team: Team) => {
+  const getSlotsPercentage = useCallback((team: Team) => {
     return team.totalSlots > 0 ? ((team.filledSlots || 0) / team.totalSlots) * 100 : 0;
-  };
+  }, []);
+
+  // Memoize statistics calculations
+  const teamStats = useMemo(() => ({
+    totalTeams: teams.length,
+    totalPlayers: teams.reduce((sum, t) => sum + (t.filledSlots || 0), 0),
+    totalBudget: teams.reduce((sum, t) => sum + (t.budget || 0), 0)
+  }), [teams]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
