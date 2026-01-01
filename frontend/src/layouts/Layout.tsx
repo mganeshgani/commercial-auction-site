@@ -66,7 +66,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }, [API_URL]);
   
   const navigation = [
-    { name: 'Auction', href: '/' },
+    { name: 'Auction', href: '/auction' },
     { name: 'Teams', href: '/teams' },
     { name: 'Players', href: '/players' },
     { name: 'Unsold', href: '/unsold' },
