@@ -85,17 +85,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     navigate('/login');
   };
 
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'bg-gradient-to-r from-red-500/30 to-red-600/30 text-red-300 border-red-400/60';
-      case 'auctioneer':
-        return 'bg-gradient-to-r from-amber-500/30 to-yellow-500/30 text-amber-300 border-amber-400/60';
-      default:
-        return 'bg-gradient-to-r from-slate-500/30 to-slate-600/30 text-slate-300 border-slate-400/60';
-    }
-  };
-
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{
       background: 'linear-gradient(160deg, #000000 0%, #0a0a0a 25%, #1a1a1a 50%, #0f172a 75%, #1a1a1a 100%)',

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { Team } from '../../types';
 
 interface TeamCardProps {
@@ -6,29 +6,32 @@ interface TeamCardProps {
   compact?: boolean;
 }
 
-const TeamCard: React.FC<TeamCardProps> = ({ team, compact = false }) => {
-  const budgetPercentage = team.budget && team.remainingBudget 
-    ? ((team.remainingBudget / team.budget) * 100) 
-    : 0;
+const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
+  const budgetPercentage = useMemo(() => 
+    team.budget && team.remainingBudget 
+      ? ((team.remainingBudget / team.budget) * 100) 
+      : 0,
+    [team.budget, team.remainingBudget]
+  );
 
-  const slotsPercentage = team.totalSlots && team.filledSlots
-    ? ((team.filledSlots / team.totalSlots) * 100)
-    : 0;
+  const slotsPercentage = useMemo(() => 
+    team.totalSlots && team.filledSlots
+      ? ((team.filledSlots / team.totalSlots) * 100)
+      : 0,
+    [team.totalSlots, team.filledSlots]
+  );
 
-  const getBudgetColor = () => {
+  const budgetColors = useMemo(() => {
     if (budgetPercentage > 50) return { from: '#B08B4F', to: '#C99D5F', tw: 'from-yellow-400 to-amber-500' };
     if (budgetPercentage > 25) return { from: '#B08B4F', to: '#A07A3F', tw: 'from-yellow-400 to-amber-500' };
     return { from: '#7D4B57', to: '#8D5B67', tw: 'from-amber-500 to-yellow-600' };
-  };
+  }, [budgetPercentage]);
 
-  const getSlotsColor = () => {
+  const slotsColors = useMemo(() => {
     if (slotsPercentage < 50) return { from: '#7D4B57', to: '#8D5B67', tw: 'from-blue-900 to-purple-900' };
     if (slotsPercentage < 80) return { from: '#7D4B57', to: '#A07A3F', tw: 'from-purple-900 to-purple-600' };
     return { from: '#B08B4F', to: '#C99D5F', tw: 'from-yellow-400 to-amber-500' };
-  };
-
-  const budgetColors = getBudgetColor();
-  const slotsColors = getSlotsColor();
+  }, [slotsPercentage]);
 
   if (compact) {
     return (
@@ -425,6 +428,8 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, compact = false }) => {
       </div>
     </div>
   );
-};
+});
+
+TeamCard.displayName = 'TeamCard';
 
 export default TeamCard;

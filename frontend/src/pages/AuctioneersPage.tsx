@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import AuctioneerDetailModal from '../components/AuctioneerDetailModal';
 
@@ -39,11 +39,7 @@ const AuctioneersPage: React.FC = () => {
     confirmPassword: ''
   });
 
-  useEffect(() => {
-    fetchAuctioneers();
-  }, []);
-
-  const fetchAuctioneers = async () => {
+  const fetchAuctioneers = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${API_URL}/admin/auctioneers`, {
@@ -55,7 +51,11 @@ const AuctioneersPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL]);
+
+  useEffect(() => {
+    fetchAuctioneers();
+  }, [fetchAuctioneers]);
 
   const isExpired = (accessExpiry: string | null) => {
     if (!accessExpiry) return false;

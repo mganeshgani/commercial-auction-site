@@ -53,7 +53,7 @@ const PlayersPage: React.FC = () => {
       console.error('Error deleting player:', error);
       alert('Failed to delete player');
     }
-  }, [fetchPlayers]);
+  }, [BACKEND_URL, fetchPlayers]);
 
   const filteredPlayers = useMemo(() => 
     filter === 'all' 

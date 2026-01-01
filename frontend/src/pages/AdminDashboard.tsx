@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
@@ -45,11 +45,7 @@ const AdminDashboard: React.FC = () => {
   const [recentAuctioneers, setRecentAuctioneers] = useState<Auctioneer[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const [statsRes, auctioneersRes] = await Promise.all([
@@ -73,7 +69,11 @@ const AdminDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const isExpired = (accessExpiry: string | null) => {
     if (!accessExpiry) return false;

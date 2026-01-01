@@ -1,23 +1,41 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuctionProvider } from './contexts/AuctionContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './layouts/Layout';
-import AdminLayout from './layouts/AdminLayout';
-import Login from './pages/Login';
-import PlayerRegistrationPage from './pages/PlayerRegistrationPage';
-import FormBuilderPage from './pages/FormBuilderPage';
-import AuctionPage from './pages/AuctionPage';
-import TeamsPage from './pages/TeamsPage';
-import PlayersPage from './pages/PlayersPage';
-import UnsoldPage from './pages/UnsoldPage';
-import ResultsPage from './pages/ResultsPage';
-import AdminDashboard from './pages/AdminDashboard';
-import AuctioneersPage from './pages/AuctioneersPage';
-import SettingsPage from './pages/SettingsPage';
-import './App.css';
+
+// Lazy load all pages for code splitting (reduces initial bundle size)
+const Layout = lazy(() => import('./layouts/Layout'));
+const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
+const Login = lazy(() => import('./pages/Login'));
+const PlayerRegistrationPage = lazy(() => import('./pages/PlayerRegistrationPage'));
+const FormBuilderPage = lazy(() => import('./pages/FormBuilderPage'));
+const AuctionPage = lazy(() => import('./pages/AuctionPage'));
+const TeamsPage = lazy(() => import('./pages/TeamsPage'));
+const PlayersPage = lazy(() => import('./pages/PlayersPage'));
+const UnsoldPage = lazy(() => import('./pages/UnsoldPage'));
+const ResultsPage = lazy(() => import('./pages/ResultsPage'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AuctioneersPage = lazy(() => import('./pages/AuctioneersPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+
+// Premium loading spinner component
+const LoadingSpinner = () => (
+  <div className="h-screen w-screen flex items-center justify-center" style={{
+    background: 'linear-gradient(160deg, #000000 0%, #0a0a0a 25%, #1a1a1a 50%, #0f172a 75%, #1a1a1a 100%)'
+  }}>
+    <div className="text-center">
+      <div className="relative inline-block">
+        <div className="w-16 h-16 rounded-full border-4 border-t-amber-500 border-r-transparent border-b-amber-500/30 border-l-transparent animate-spin"></div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 animate-pulse"></div>
+        </div>
+      </div>
+      <p className="mt-4 text-amber-400/80 text-sm font-medium tracking-wider">Loading...</p>
+    </div>
+  </div>
+);
 
 // Role-based redirect component
 const RoleBasedRedirect = () => {
@@ -35,81 +53,83 @@ function App() {
       <Router>
         <AuthProvider>
           <AuctionProvider>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/player-registration/:token" element={<PlayerRegistrationPage />} />
-              
-              {/* Root redirect based on role */}
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <RoleBasedRedirect />
-                </ProtectedRoute>
-              } />
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/player-registration/:token" element={<PlayerRegistrationPage />} />
+                
+                {/* Root redirect based on role */}
+                <Route path="/" element={
+                  <ProtectedRoute>
+                    <RoleBasedRedirect />
+                  </ProtectedRoute>
+                } />
 
-              {/* Admin Routes - Only accessible by admin */}
-              <Route path="/admin/*" element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminLayout>
-                    <Routes>
-                      <Route index element={<AdminDashboard />} />
-                      <Route path="auctioneers" element={<AuctioneersPage />} />
-                    </Routes>
-                  </AdminLayout>
-                </ProtectedRoute>
-              } />
+                {/* Admin Routes - Only accessible by admin */}
+                <Route path="/admin/*" element={
+                  <ProtectedRoute requiredRole="admin">
+                    <AdminLayout>
+                      <Routes>
+                        <Route index element={<AdminDashboard />} />
+                        <Route path="auctioneers" element={<AuctioneersPage />} />
+                      </Routes>
+                    </AdminLayout>
+                  </ProtectedRoute>
+                } />
 
-              {/* Auctioneer Routes - Accessible by auctioneers only (admin blocked) */}
-              <Route path="/auction" element={
-                <ProtectedRoute requiredRole="auctioneer">
-                  <Layout>
-                    <AuctionPage />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/teams" element={
-                <ProtectedRoute requiredRole="auctioneer">
-                  <Layout>
-                    <TeamsPage />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/players" element={
-                <ProtectedRoute requiredRole="auctioneer">
-                  <Layout>
-                    <PlayersPage />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/unsold" element={
-                <ProtectedRoute requiredRole="auctioneer">
-                  <Layout>
-                    <UnsoldPage />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/results" element={
-                <ProtectedRoute requiredRole="auctioneer">
-                  <Layout>
-                    <ResultsPage />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/form-builder" element={
-                <ProtectedRoute requiredRole="auctioneer">
-                  <Layout>
-                    <FormBuilderPage />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/settings" element={
-                <ProtectedRoute requiredRole="auctioneer">
-                  <Layout>
-                    <SettingsPage />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-            </Routes>
+                {/* Auctioneer Routes - Accessible by auctioneers only (admin blocked) */}
+                <Route path="/auction" element={
+                  <ProtectedRoute requiredRole="auctioneer">
+                    <Layout>
+                      <AuctionPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/teams" element={
+                  <ProtectedRoute requiredRole="auctioneer">
+                    <Layout>
+                      <TeamsPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/players" element={
+                  <ProtectedRoute requiredRole="auctioneer">
+                    <Layout>
+                      <PlayersPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/unsold" element={
+                  <ProtectedRoute requiredRole="auctioneer">
+                    <Layout>
+                      <UnsoldPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/results" element={
+                  <ProtectedRoute requiredRole="auctioneer">
+                    <Layout>
+                      <ResultsPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/form-builder" element={
+                  <ProtectedRoute requiredRole="auctioneer">
+                    <Layout>
+                      <FormBuilderPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/settings" element={
+                  <ProtectedRoute requiredRole="auctioneer">
+                    <Layout>
+                      <SettingsPage />
+                    </Layout>
+                  </ProtectedRoute>
+                } />
+              </Routes>
+            </Suspense>
           </AuctionProvider>
         </AuthProvider>
       </Router>

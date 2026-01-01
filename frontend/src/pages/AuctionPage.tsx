@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Player, Team } from '../types';
 import SpinWheel from '../components/auction/SpinWheel';
 import PlayerCard from '../components/auction/PlayerCard';
@@ -22,8 +22,6 @@ const AuctionPage: React.FC = () => {
   const [celebrationAmount, setCelebrationAmount] = useState<number>(0);
   const [celebrationTeamName, setCelebrationTeamName] = useState<string>('');
   const [hasAuctionStarted, setHasAuctionStarted] = useState(false);
-
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
   useEffect(() => {
     fetchTeams();

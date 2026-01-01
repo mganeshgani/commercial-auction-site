@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 
 interface PlayerCardProps {
   player: {
@@ -26,7 +26,7 @@ const getPositionColor = (position: string) => {
   return { gradient: 'from-gray-400 to-gray-600', light: '#9ca3af', dark: '#4b5563' };
 };
 
-const PlayerCard: React.FC<PlayerCardProps> = ({
+const PlayerCard: React.FC<PlayerCardProps> = memo(({
   player,
   soldAmount,
   setSoldAmount,
@@ -35,7 +35,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
   loading,
   isAuctioneer = true,
 }) => {
-  const positionColors = getPositionColor(player.position);
+  const positionColors = useMemo(() => getPositionColor(player.position), [player.position]);
   const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
 
   return (
@@ -472,6 +472,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
       </div>
     </div>
   );
-};
+});
+
+PlayerCard.displayName = 'PlayerCard';
 
 export default PlayerCard;

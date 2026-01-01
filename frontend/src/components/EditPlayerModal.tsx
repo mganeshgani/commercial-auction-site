@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Player } from '../types';
 
@@ -30,12 +30,7 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
   const isAddMode = !player;
 
-  // Fetch form configuration on mount
-  useEffect(() => {
-    fetchFormConfig();
-  }, []);
-
-  const fetchFormConfig = async () => {
+  const fetchFormConfig = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${API_URL}/form-config`, {
@@ -75,7 +70,12 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
     } finally {
       setLoadingFields(false);
     }
-  };
+  }, [API_URL, player]);
+
+  // Fetch form configuration on mount
+  useEffect(() => {
+    fetchFormConfig();
+  }, [fetchFormConfig]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { Player, Team } from '../types';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -8,7 +8,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 second timeout
+  timeout: 15000, // Reduced to 15 seconds for faster failure detection
 });
 
 // Add request interceptor to include auth token
@@ -25,14 +25,30 @@ api.interceptors.request.use(
   }
 );
 
-// Simple in-memory cache with TTL
+// Response interceptor for error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid - clear auth and redirect
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Enhanced in-memory cache with TTL and request deduplication
 interface CacheEntry {
   data: any;
   timestamp: number;
+  promise?: Promise<any>;
 }
 
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL = 30000; // 30 seconds
+const pendingRequests = new Map<string, Promise<any>>();
 
 const getCached = (key: string) => {
   const entry = cache.get(key);
@@ -45,6 +61,23 @@ const getCached = (key: string) => {
 
 const setCache = (key: string, data: any) => {
   cache.set(key, { data, timestamp: Date.now() });
+};
+
+// Deduplicate concurrent requests
+const deduplicateRequest = async <T>(key: string, requestFn: () => Promise<T>): Promise<T> => {
+  // Check if there's already a pending request for this key
+  const pending = pendingRequests.get(key);
+  if (pending) {
+    return pending;
+  }
+
+  // Create new request and store it
+  const promise = requestFn().finally(() => {
+    pendingRequests.delete(key);
+  });
+  
+  pendingRequests.set(key, promise);
+  return promise;
 };
 
 export const clearCache = () => {
@@ -87,9 +120,11 @@ export const playerService = {
       const cached = getCached(cacheKey);
       if (cached) return cached;
     }
-    const response = await api.get<Player[]>('/players');
-    setCache(cacheKey, response.data);
-    return response.data;
+    return deduplicateRequest(cacheKey, async () => {
+      const response = await api.get<Player[]>('/players');
+      setCache(cacheKey, response.data);
+      return response.data;
+    });
   },
 
   updatePlayer: async (playerId: string, data: Partial<Player>) => {
@@ -130,9 +165,11 @@ export const teamService = {
       const cached = getCached(cacheKey);
       if (cached) return cached;
     }
-    const response = await api.get<Team[]>('/teams');
-    setCache(cacheKey, response.data);
-    return response.data;
+    return deduplicateRequest(cacheKey, async () => {
+      const response = await api.get<Team[]>('/teams');
+      setCache(cacheKey, response.data);
+      return response.data;
+    });
   },
 
   getTeamById: async (teamId: string, useCache = true) => {

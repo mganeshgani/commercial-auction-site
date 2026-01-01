@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './SpinWheel.css';
 
 interface SpinWheelProps {
@@ -8,17 +8,25 @@ interface SpinWheelProps {
 
 const SpinWheel: React.FC<SpinWheelProps> = ({ onSpinComplete, isSpinning }) => {
   const [rotation, setRotation] = useState(0);
+  const onSpinCompleteRef = useRef(onSpinComplete);
+  
+  // Keep ref updated with latest callback
+  useEffect(() => {
+    onSpinCompleteRef.current = onSpinComplete;
+  }, [onSpinComplete]);
 
   useEffect(() => {
     if (isSpinning) {
       // Random rotation between 1800-3600 degrees (5-10 full rotations)
       const randomRotation = Math.floor(Math.random() * 1800) + 1800;
-      setRotation(rotation + randomRotation);
+      setRotation(prev => prev + randomRotation);
 
       // Call onSpinComplete after animation finishes
-      setTimeout(() => {
-        onSpinComplete();
+      const timer = setTimeout(() => {
+        onSpinCompleteRef.current();
       }, 4000); // 4 seconds animation
+      
+      return () => clearTimeout(timer);
     }
   }, [isSpinning]);
 
