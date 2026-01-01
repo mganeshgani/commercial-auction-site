@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 interface AppConfig {
@@ -11,7 +11,7 @@ interface AppConfig {
 
 const SettingsPage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
-  const [config, setConfig] = useState<AppConfig | null>(null);
+  const [, setConfig] = useState<AppConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -21,11 +21,7 @@ const SettingsPage: React.FC = () => {
     subtitle: ''
   });
 
-  useEffect(() => {
-    fetchConfig();
-  }, []);
-
-  const fetchConfig = async () => {
+  const fetchConfig = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${API_URL}/config`, {
@@ -42,7 +38,11 @@ const SettingsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL]);
+
+  useEffect(() => {
+    fetchConfig();
+  }, [fetchConfig]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

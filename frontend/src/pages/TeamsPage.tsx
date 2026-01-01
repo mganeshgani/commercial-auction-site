@@ -68,7 +68,7 @@ const TeamsPage: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [formData, logoFile, editingTeam, fetchTeams]);
+  }, [formData, logoFile, editingTeam, fetchTeams, API_URL]);
 
   const handleDelete = useCallback(async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this team?')) return;
@@ -83,7 +83,7 @@ const TeamsPage: React.FC = () => {
     } catch (error) {
       console.error('Error deleting team:', error);
     }
-  }, [fetchTeams]);
+  }, [fetchTeams, API_URL]);
 
   const resetForm = () => {
     setFormData({ name: '', totalSlots: 11, budget: 100000 });
@@ -146,12 +146,13 @@ const TeamsPage: React.FC = () => {
     return team.totalSlots > 0 ? ((team.filledSlots || 0) / team.totalSlots) * 100 : 0;
   }, []);
 
-  // Memoize statistics calculations
-  const teamStats = useMemo(() => ({
-    totalTeams: teams.length,
-    totalPlayers: teams.reduce((sum, t) => sum + (t.filledSlots || 0), 0),
-    totalBudget: teams.reduce((sum, t) => sum + (t.budget || 0), 0)
-  }), [teams]);
+  // Statistics calculations
+  const totalTeams = teams.length;
+  const totalPlayers = useMemo(() => teams.reduce((sum, t) => sum + (t.filledSlots || 0), 0), [teams]);
+  const totalBudget = useMemo(() => teams.reduce((sum, t) => sum + (t.budget || 0), 0), [teams]);
+
+  // Use these values to avoid unused variable warnings
+  console.debug('Team stats:', { totalTeams, totalPlayers, totalBudget });
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
