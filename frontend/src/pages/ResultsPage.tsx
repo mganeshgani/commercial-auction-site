@@ -43,9 +43,10 @@ const ResultsPage: React.FC = () => {
       const data = await resultsService.getResultsData(false);
       setTeams(data.teams);
       setPlayers(data.players);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error removing player from team:', error);
-      alert('Failed to remove player from team');
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to remove player from team';
+      alert(`Failed to remove player: ${errorMessage}`);
     }
   }, [API_URL]);
 
@@ -283,16 +284,6 @@ const ResultsPage: React.FC = () => {
                 : (team.budget || 0) - spent;
               const actualSpent = (team.budget || 0) - actualRemaining;
               const budgetUsedPercentage = ((actualSpent / (team.budget || 1)) * 100).toFixed(0);
-              
-              console.log(`Team ${team.name}:`, {
-                filledSlots: actualFilledSlots,
-                playersInState: teamPlayers.length,
-                spent: actualSpent,
-                remaining: actualRemaining,
-                budgetUsed: budgetUsedPercentage + '%',
-                backendFilledSlots: team.filledSlots,
-                backendRemainingBudget: team.remainingBudget
-              });
               
               // Premium gradient colors for teams
               const teamGradients = [

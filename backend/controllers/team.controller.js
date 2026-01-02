@@ -188,13 +188,21 @@ exports.deleteTeam = async (req, res) => {
     // Check if team has players
     if (team.filledSlots > 0) {
       return res.status(400).json({ 
-        error: 'Cannot delete team with assigned players' 
+        error: `Cannot delete team with assigned players. Please remove all ${team.filledSlots} player(s) first.`
       });
     }
 
     await team.deleteOne();
+    
+    // Emit socket event for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`auctioneer_${req.user._id}`).emit('teamDeleted', { teamId });
+    }
+    
     res.json({ message: 'Team deleted successfully' });
   } catch (error) {
+    console.error('Error deleting team:', error);
     res.status(500).json({ error: 'Error deleting team' });
   }
 };

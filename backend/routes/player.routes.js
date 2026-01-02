@@ -54,9 +54,9 @@ router.post('/:playerId/unsold', playerController.markUnsold);
 // Remove player from team
 router.delete('/:playerId/remove-from-team', playerController.removePlayerFromTeam);
 
-// Update player (PATCH and PUT for compatibility)
-router.patch('/:playerId', playerController.updatePlayer);
-router.put('/:playerId', playerController.updatePlayer);
+// Update player (PATCH and PUT for compatibility) - with photo upload support
+router.patch('/:playerId', photoUpload.single('photo'), playerController.updatePlayer);
+router.put('/:playerId', photoUpload.single('photo'), playerController.updatePlayer);
 
 // Delete single player
 router.delete('/:playerId', playerController.deletePlayer);

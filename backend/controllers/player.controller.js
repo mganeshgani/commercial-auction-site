@@ -284,22 +284,47 @@ exports.removePlayerFromTeam = async (req, res) => {
       return res.status(404).json({ error: 'Player not found or access denied' });
     }
 
-    if (!player.team || player.status !== 'sold') {
-      return res.status(400).json({ error: 'Player is not assigned to any team' });
+    console.log('Remove player from team - Player data:', {
+      id: player._id,
+      name: player.name,
+      team: player.team,
+      status: player.status,
+      soldAmount: player.soldAmount
+    });
+
+    let teamId = player.team;
+    let soldAmount = player.soldAmount || 0;
+    let team = null;
+
+    // If player has a team field, use it
+    if (teamId) {
+      team = await Team.findOne({ _id: teamId, auctioneer: req.user._id });
+    } else {
+      // Data inconsistency: player.team is null but player might be in a team's array
+      // Search all teams to find which one has this player
+      console.log('Player team field is null - searching all teams for this player');
+      team = await Team.findOne({ 
+        auctioneer: req.user._id,
+        players: playerId 
+      });
+      
+      if (!team) {
+        return res.status(400).json({ error: 'Player is not assigned to any team' });
+      }
+      
+      console.log(`Found player in team: ${team.name} (${team._id})`);
     }
 
-    const teamId = player.team;
-    const soldAmount = player.soldAmount || 0;
-
-    // Find and update the team (verify it belongs to this auctioneer)
-    const team = await Team.findOne({ _id: teamId, auctioneer: req.user._id });
+    // Remove player from team's players array and update budget
     if (team) {
       // Remove player from team's players array
       team.players = team.players.filter(p => String(p) !== String(playerId));
       team.filledSlots = team.players.length;
       
-      // Refund the sold amount to team's budget
-      team.remainingBudget = (team.remainingBudget || 0) + soldAmount;
+      // Refund the sold amount to team's budget (only if player was sold)
+      if (player.status === 'sold' && soldAmount > 0) {
+        team.remainingBudget = (team.remainingBudget || 0) + soldAmount;
+      }
       
       await team.save();
       
@@ -346,15 +371,122 @@ exports.updatePlayer = async (req, res) => {
       return res.status(404).json({ error: 'Player not found or access denied' });
     }
 
+    const oldTeam = player.team;
+    const oldStatus = player.status;
+    const oldSoldAmount = player.soldAmount || 0;
+    const newTeam = updateData.team;
+    const newStatus = updateData.status;
+
+    // Handle photo upload if provided
+    if (req.file) {
+      try {
+        const result = await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              folder: 'auction-players',
+              public_id: `player_${player.regNo || playerId}_${Date.now()}`,
+              resource_type: 'image',
+              transformation: [
+                { width: 800, height: 800, crop: 'limit' },
+                { quality: 'auto' },
+                { fetch_format: 'auto' }
+              ]
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          uploadStream.end(req.file.buffer);
+        });
+        
+        player.photoUrl = result.secure_url;
+        console.log('Photo updated:', result.secure_url);
+      } catch (uploadError) {
+        console.error('Error uploading photo:', uploadError);
+        return res.status(400).json({ 
+          error: 'Failed to upload photo. Please try again.' 
+        });
+      }
+    }
+
     // Update player fields
     Object.keys(updateData).forEach(key => {
-      player[key] = updateData[key];
+      if (key !== 'photo') { // Skip photo as it's handled separately
+        player[key] = updateData[key];
+      }
     });
 
     // If marking as unsold, clear team and soldAmount
     if (updateData.status === 'unsold') {
       player.team = null;
       player.soldAmount = null;
+      
+      // If player was previously sold, refund the team
+      if (oldTeam && oldStatus === 'sold') {
+        const team = await Team.findOne({ _id: oldTeam, auctioneer: req.user._id });
+        if (team) {
+          team.players = team.players.filter(p => String(p) !== String(playerId));
+          team.filledSlots = team.players.length;
+          team.remainingBudget = (team.remainingBudget || 0) + oldSoldAmount;
+          await team.save();
+          
+          const io = req.app.get('io');
+          if (io) {
+            io.to(`auctioneer_${req.user._id}`).emit('teamUpdated', team);
+          }
+        }
+      }
+    }
+    
+    // If changing teams or assigning to a team for the first time
+    if (updateData.status === 'sold' && updateData.team) {
+      const teamChanged = oldTeam && String(oldTeam) !== String(newTeam);
+      
+      // Remove from old team if changing teams
+      if (teamChanged && oldTeam) {
+        const oldTeamDoc = await Team.findOne({ _id: oldTeam, auctioneer: req.user._id });
+        if (oldTeamDoc) {
+          oldTeamDoc.players = oldTeamDoc.players.filter(p => String(p) !== String(playerId));
+          oldTeamDoc.filledSlots = oldTeamDoc.players.length;
+          // Refund old amount to old team
+          oldTeamDoc.remainingBudget = (oldTeamDoc.remainingBudget || 0) + oldSoldAmount;
+          await oldTeamDoc.save();
+          
+          const io = req.app.get('io');
+          if (io) {
+            io.to(`auctioneer_${req.user._id}`).emit('teamUpdated', oldTeamDoc);
+          }
+        }
+      }
+      
+      // Add to new team
+      const team = await Team.findOne({ _id: updateData.team, auctioneer: req.user._id });
+      if (!team) {
+        return res.status(404).json({ error: 'Team not found or access denied' });
+      }
+      
+      // Check if player is already in team's players array
+      const playerExists = team.players.some(p => String(p) === String(playerId));
+      if (!playerExists) {
+        team.players.push(playerId);
+        team.filledSlots = team.players.length;
+      }
+      
+      // Deduct soldAmount from new team budget if provided
+      if (updateData.soldAmount && typeof updateData.soldAmount === 'number') {
+        // Only deduct if it's a new assignment or team change
+        if (!oldTeam || teamChanged) {
+          team.remainingBudget = (team.remainingBudget || team.budget) - updateData.soldAmount;
+        }
+      }
+      
+      await team.save();
+      
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`auctioneer_${req.user._id}`).emit('teamUpdated', team);
+      }
     }
 
     await player.save();
@@ -373,6 +505,7 @@ exports.updatePlayer = async (req, res) => {
     
     res.json(player);
   } catch (error) {
+    console.error('Error updating player:', error);
     res.status(500).json({ error: 'Error updating player' });
   }
 };

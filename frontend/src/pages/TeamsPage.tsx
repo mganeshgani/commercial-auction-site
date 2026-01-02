@@ -80,8 +80,10 @@ const TeamsPage: React.FC = () => {
       });
       clearCache(); // Clear cache after deletion
       fetchTeams();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting team:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to delete team';
+      alert(errorMessage);
     }
   }, [API_URL, fetchTeams]);
 

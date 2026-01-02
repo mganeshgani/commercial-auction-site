@@ -49,9 +49,10 @@ const PlayersPage: React.FC = () => {
       });
       clearCache(); // Clear cache after deletion
       fetchPlayers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting player:', error);
-      alert('Failed to delete player');
+      const errorMessage = error.response?.data?.error || 'Failed to delete player';
+      alert(errorMessage);
     }
   }, [BACKEND_URL, fetchPlayers]);
 

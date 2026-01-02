@@ -51,7 +51,6 @@ const AuctionPage: React.FC = () => {
     });
 
     socket.on('teamUpdated', (updatedTeam: Team) => {
-      console.log('Team updated:', updatedTeam);
       // OPTIMIZED: Update specific team instead of refetching all
       setTeams(prevTeams => 
         prevTeams.map(team => 
