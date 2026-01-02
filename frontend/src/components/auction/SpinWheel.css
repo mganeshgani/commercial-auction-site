@@ -3,16 +3,20 @@
 .spin-wheel-container {
   position: relative;
   width: 100%;
-  max-width: 550px;
+  max-width: min(550px, 90vw);
+  max-height: min(550px, 70vh);
   margin: 0 auto;
-  padding: 2.5rem;
+  padding: 1rem;
   perspective: 1000px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .spin-wheel-frame {
   position: relative;
-  width: 450px;
-  height: 450px;
+  width: min(450px, 85vw, 65vh);
+  height: min(450px, 85vw, 65vh);
   margin: 0 auto;
   filter: drop-shadow(0 20px 60px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 40px rgba(212, 175, 55, 0.2));
 }

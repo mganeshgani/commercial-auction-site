@@ -179,6 +179,13 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <main className="flex-1 overflow-auto bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
           {children}
         </main>
+
+        {/* Footer */}
+        <footer className="border-t border-slate-800 py-3 px-4 flex-shrink-0 bg-slate-900">
+          <p className="text-center text-xs text-slate-500">
+            © {new Date().getFullYear()} Sports Auction. All rights reserved.
+          </p>
+        </footer>
       </div>
     </div>
   );

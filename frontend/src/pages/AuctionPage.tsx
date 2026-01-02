@@ -146,42 +146,46 @@ const AuctionPage: React.FC = () => {
 
     setShowTeamModal(false);
 
+    // Find team name for celebration display
+    const acquiredTeam = teams.find(t => t._id === teamId);
+    
+    // Show celebration immediately - before API calls
+    setCelebrationAmount(soldAmount);
+    setCelebrationTeamName(acquiredTeam?.name || 'Team');
+    setShowCelebration(true);
+    playSoldSound();
+
+    // Hide celebration after 4 seconds
+    const celebrationTimer = setTimeout(() => {
+      setShowCelebration(false);
+    }, 4000);
+
     try {
-      await playerService.updatePlayer(currentPlayer._id, {
-        status: 'sold',
-        team: teamId,
-        soldAmount: soldAmount
-      });
-
-      await teamService.patchTeam(teamId, {
-        $push: { players: currentPlayer._id },
-        soldAmount: soldAmount
-      });
-
-      // Play sold sound and show premium celebration overlay
-      playSoldSound();
-      
-      // Find team name for celebration display
-      const acquiredTeam = teams.find(t => t._id === teamId);
-      
-      // Store celebration data
-      setCelebrationAmount(soldAmount);
-      setCelebrationTeamName(acquiredTeam?.name || 'Team');
-      setShowCelebration(true);
-
-      // Hide celebration after 4 seconds
-      setTimeout(() => {
-        setShowCelebration(false);
-      }, 4000);
+      // Perform API calls in parallel
+      await Promise.all([
+        playerService.updatePlayer(currentPlayer._id, {
+          status: 'sold',
+          team: teamId,
+          soldAmount: soldAmount
+        }),
+        teamService.patchTeam(teamId, {
+          $push: { players: currentPlayer._id },
+          soldAmount: soldAmount
+        })
+      ]);
 
       setShowPlayer(false);
       setCurrentPlayer(null);
       setSoldAmount(0);
+      
+      // Fetch updates in background without awaiting
       fetchTeams();
       fetchAvailableCount();
     } catch (error) {
       console.error('Error assigning player:', error);
       alert('Failed to assign player');
+      clearTimeout(celebrationTimer);
+      setShowCelebration(false);
     }
   };
 
@@ -203,69 +207,80 @@ const AuctionPage: React.FC = () => {
 
   return (
     <>
-      <div className="h-full flex flex-col px-4 py-3" style={{
+      <div className="h-full flex flex-col px-2 sm:px-4 py-2 sm:py-3 overflow-hidden" style={{
         background: 'linear-gradient(160deg, #000000 0%, #0a0a0a 25%, #1a1a1a 50%, #0f172a 75%, #1a1a1a 100%)',
         backgroundAttachment: 'fixed'
       }}>
-      {/* Compact Header */}
-      <div className="flex justify-between items-center mb-3 flex-shrink-0">
-        <h1 className="text-2xl font-bold">Live Auction</h1>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 flex-1 overflow-hidden min-h-0">
-        {/* Team Dashboard - Compact Sidebar */}
-        <div className="lg:col-span-1 space-y-1.5 overflow-y-auto custom-scrollbar pr-2 min-h-0">
-          <div className="sticky top-0 py-2 z-10 backdrop-blur-sm" style={{
-            background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(10, 10, 10, 0.9) 50%, rgba(0, 0, 0, 0.95) 100%)',
-            borderBottom: '2px solid rgba(212, 175, 55, 0.3)',
-            boxShadow: '0 2px 10px rgba(212, 175, 55, 0.1)'
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 sm:gap-3 flex-1 min-h-0">
+        {/* Team Dashboard - Compact Sidebar - Hidden on mobile, shown as horizontal scroll */}
+        <div className="lg:col-span-1 order-2 lg:order-1 flex flex-col min-h-0">
+          {/* Mobile: Horizontal scroll, Desktop: Vertical scroll */}
+          <div className="lg:hidden overflow-x-auto overflow-y-hidden pb-2 -mx-3 px-3" style={{
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(212, 175, 55, 0.5) rgba(0, 0, 0, 0.3)',
+            WebkitOverflowScrolling: 'touch'
           }}>
-            <h2 className="text-2xl font-black tracking-tight text-center" style={{
-              background: 'linear-gradient(135deg, #FFFFFF 0%, #F0D770 50%, #D4AF37 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              filter: 'drop-shadow(0 0 20px rgba(212, 175, 55, 0.4))'
-            }}>
-              TEAMS
-            </h2>
+            <div className="flex gap-2" style={{ width: 'max-content' }}>
+              {teams.map((team) => (
+                <div key={team._id} className="w-48 flex-shrink-0">
+                  <TeamCard team={team} compact={true} />
+                </div>
+              ))}
+            </div>
           </div>
-          {teams.map((team) => (
-            <TeamCard key={team._id} team={team} compact={true} />
-          ))}
+          
+          {/* Desktop: Vertical list */}
+          <div className="hidden lg:flex flex-col h-full rounded-lg overflow-hidden" style={{
+            background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(10, 10, 10, 0.6) 50%, rgba(0, 0, 0, 0.7) 100%)',
+            border: '1px solid rgba(212, 175, 55, 0.2)'
+          }}>
+            <div className="flex-shrink-0 py-3 backdrop-blur-sm" style={{
+              background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(10, 10, 10, 0.9) 50%, rgba(0, 0, 0, 0.95) 100%)',
+              borderBottom: '2px solid rgba(212, 175, 55, 0.3)',
+              boxShadow: '0 2px 10px rgba(212, 175, 55, 0.1)'
+            }}>
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-center" style={{
+                background: 'linear-gradient(135deg, #FFFFFF 0%, #F0D770 50%, #D4AF37 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                filter: 'drop-shadow(0 0 20px rgba(212, 175, 55, 0.4))'
+              }}>
+                TEAMS
+              </h2>
+            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 p-2">
+              {teams.map((team) => (
+                <TeamCard key={team._id} team={team} compact={true} />
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Auction Area - Larger Space */}
-        <div className="lg:col-span-3 flex flex-col h-full">
+        <div className="lg:col-span-3 flex flex-col h-full order-1 lg:order-2 min-h-[300px] sm:min-h-[400px]">
           {!showPlayer && !isSpinning && (
             <div className="backdrop-blur-sm rounded-lg flex items-center justify-center flex-1 min-h-0" style={{
               background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(10, 10, 10, 0.6) 50%, rgba(0, 0, 0, 0.7) 100%)',
               border: '1px solid rgba(212, 175, 55, 0.2)'
             }}>
-              <div className="text-center max-w-md">
+              <div className="text-center max-w-md px-4">
                 {/* Premium Golden Wings Badge */}
-                <div className="relative inline-block mb-6">
+                <div className="relative inline-block mb-4 sm:mb-6">
                   {/* Multi-layer Glow Aura - Minimal */}
                   <div className="absolute inset-0 blur-lg opacity-4 animate-pulse" style={{
                     background: 'radial-gradient(ellipse, rgba(255, 215, 0, 0.15) 0%, rgba(212, 175, 55, 0.08) 30%, rgba(218, 165, 32, 0.04) 60%, transparent 80%)',
-                    width: '280px',
-                    height: '120px',
-                    left: '50%',
-                    top: '50%',
-                    transform: 'translate(-50%, -50%)'
-                  }}></div>
-                  <div className="absolute inset-0 blur-sm opacity-2" style={{
-                    background: 'radial-gradient(ellipse, rgba(255, 223, 0, 0.12) 0%, rgba(184, 134, 11, 0.06) 50%, transparent 70%)',
-                    width: '260px',
-                    height: '110px',
+                    width: '200px',
+                    height: '80px',
                     left: '50%',
                     top: '50%',
                     transform: 'translate(-50%, -50%)'
                   }}></div>
                   
                   <div className="relative mx-auto transform hover:scale-105 transition-transform duration-500" style={{ 
-                    width: '240px', 
-                    height: '100px',
+                    width: '160px',
+                    height: '70px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center'
@@ -273,13 +288,9 @@ const AuctionPage: React.FC = () => {
                     <img 
                       src="/wings.png" 
                       alt="Premium Golden Wings" 
+                      className="w-full h-auto object-contain max-w-[160px] sm:max-w-[200px] md:max-w-[240px]"
                       style={{
-                        width: '100%',
-                        height: 'auto',
-                        objectFit: 'contain',
-                        filter: 'drop-shadow(0 4px 20px rgba(255, 215, 0, 0.6)) drop-shadow(0 0 30px rgba(255, 215, 0, 0.4))',
-                        maxWidth: '240px',
-                        maxHeight: '100px'
+                        filter: 'drop-shadow(0 4px 20px rgba(255, 215, 0, 0.6)) drop-shadow(0 0 30px rgba(255, 215, 0, 0.4))'
                       }}
                       onError={(e) => {
                         // Fallback if image fails to load
@@ -290,7 +301,7 @@ const AuctionPage: React.FC = () => {
                           const fallback = document.createElement('div');
                           fallback.className = 'fallback-text';
                           fallback.textContent = '👑 PREMIUM AUCTION 👑';
-                          fallback.style.fontSize = '24px';
+                          fallback.style.fontSize = '20px';
                           fallback.style.fontWeight = 'bold';
                           fallback.style.background = 'linear-gradient(to right, #FFD700, #FFA500, #FFD700)';
                           fallback.style.webkitBackgroundClip = 'text';
@@ -303,14 +314,14 @@ const AuctionPage: React.FC = () => {
                 </div>
 
                 {/* Elegant Heading */}
-                <h2 className="text-2xl font-bold mb-2 bg-gradient-to-r bg-clip-text text-transparent" style={{
+                <h2 className="text-xl sm:text-2xl font-bold mb-1 sm:mb-2 bg-gradient-to-r bg-clip-text text-transparent" style={{
                   fontFamily: "'Playfair Display', serif",
                   letterSpacing: '0.02em',
                   backgroundImage: 'linear-gradient(to right, #F5F5F5, #B08B4F, #F5F5F5)'
                 }}>
                   {!hasAuctionStarted ? 'Auction Awaits' : 'Ready for Next Bid'}
                 </h2>
-                <p className="mb-8 text-sm" style={{
+                <p className="mb-4 sm:mb-8 text-xs sm:text-sm" style={{
                   fontFamily: "'Montserrat', sans-serif",
                   letterSpacing: '0.05em',
                   color: '#A0A0A5'
@@ -338,14 +349,14 @@ const AuctionPage: React.FC = () => {
                   }}></div>
                   
                   {/* Button Content */}
-                  <div className="relative px-10 py-4 rounded-xl shadow-2xl transform group-hover:scale-105 transition-all duration-300 group-hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6),0_0_40px_rgba(176,139,79,0.5)]" style={{
+                  <div className="relative px-6 sm:px-8 md:px-10 py-3 sm:py-4 rounded-xl shadow-2xl transform group-hover:scale-105 transition-all duration-300 group-hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6),0_0_40px_rgba(176,139,79,0.5)]" style={{
                     background: 'linear-gradient(to right, #B08B4F, #C99D5F, #A07A3F)',
                     border: '2px solid rgba(176, 139, 79, 0.5)',
                     boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 30px rgba(176, 139, 79, 0.3)'
                   }}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl animate-pulse">✨</span>
-                      <span className="text-lg font-bold" style={{
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <span className="text-lg sm:text-2xl animate-pulse">✨</span>
+                      <span className="text-sm sm:text-base md:text-lg font-bold" style={{
                         fontFamily: "'Montserrat', sans-serif",
                         letterSpacing: '0.08em',
                         textTransform: 'uppercase',
@@ -397,13 +408,13 @@ const AuctionPage: React.FC = () => {
           )}
 
           {isSpinning && (
-            <div className="flex items-center justify-center flex-1">
+            <div className="flex items-center justify-center flex-1 overflow-hidden">
               <SpinWheel isSpinning={isSpinning} onSpinComplete={handleSpinComplete} />
             </div>
           )}
 
           {showPlayer && currentPlayer && (
-            <div className="overflow-y-auto custom-scrollbar flex-1">
+            <div className="overflow-y-auto overflow-x-hidden custom-scrollbar flex-1 min-h-0">
               <PlayerCard
                 player={currentPlayer}
                 soldAmount={soldAmount}
@@ -1243,13 +1254,6 @@ const AuctionPage: React.FC = () => {
           }
         }
       `}</style>
-
-      {/* Compact Footer */}
-      <div className="flex-shrink-0 mt-2 py-2 text-center border-t border-gray-800">
-        <p className="text-gray-500 text-xs">
-          © {new Date().getFullYear()} Sports Auction. All rights reserved.
-        </p>
-      </div>
     </div>
     </>
   );

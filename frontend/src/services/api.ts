@@ -109,9 +109,17 @@ export const playerService = {
     return response.data;
   },
 
-  getUnsoldPlayers: async () => {
-    const response = await api.get<Player[]>('/players/unsold');
-    return response.data;
+  getUnsoldPlayers: async (useCache = true) => {
+    const cacheKey = 'players:unsold';
+    if (useCache) {
+      const cached = getCached(cacheKey);
+      if (cached) return cached;
+    }
+    return deduplicateRequest(cacheKey, async () => {
+      const response = await api.get<Player[]>('/players/unsold');
+      setCache(cacheKey, response.data);
+      return response.data;
+    });
   },
 
   getAllPlayers: async (useCache = true) => {
@@ -186,5 +194,25 @@ export const teamService = {
   getFinalResults: async () => {
     const response = await api.get('/teams/results/final');
     return response.data;
+  },
+};
+
+// Results service for optimized data fetching
+export const resultsService = {
+  getResultsData: async (useCache = true) => {
+    const cacheKey = 'results:data';
+    if (useCache) {
+      const cached = getCached(cacheKey);
+      if (cached) return cached;
+    }
+    return deduplicateRequest(cacheKey, async () => {
+      const [teams, players] = await Promise.all([
+        teamService.getAllTeams(false), // Don't double-cache
+        playerService.getAllPlayers(false)
+      ]);
+      const data = { teams, players };
+      setCache(cacheKey, data);
+      return data;
+    });
   },
 };

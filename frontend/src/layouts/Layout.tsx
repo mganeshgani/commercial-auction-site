@@ -119,22 +119,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <div className="flex justify-between h-20">
             {/* Logo Section */}
             <div className="flex items-center -ml-2">
-              <div className="flex-shrink-0 flex items-center gap-3">
-                <div style={{
-                  width: '64px',
-                  height: '64px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
+              <div className="flex-shrink-0 flex items-center gap-2 sm:gap-3">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 flex items-center justify-center">
                   <img 
                     src={branding.logoUrl || '/logo.png'} 
                     alt="Logo" 
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'contain'
-                    }}
+                    className="w-full h-full object-contain"
                     onError={(e) => {
                       // Fallback to lightning emoji if image fails to load
                       const target = e.target as HTMLImageElement;
@@ -150,30 +140,26 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     }}
                   />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <h1 style={{
-                    fontSize: '1.75rem',
-                    fontFamily: "'Playfair Display', Georgia, serif",
-                    fontWeight: 700,
-                    background: 'linear-gradient(180deg, #FFFFFF 0%, #F5F5F0 30%, #FFD700 60%, #D4AF37 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
-                    letterSpacing: '0.05em',
-                    filter: 'drop-shadow(0 2px 10px rgba(212, 175, 55, 0.3))',
-                    lineHeight: '1.2'
-                  }}>
+                <div className="flex flex-col gap-0.5 sm:gap-1">
+                  <h1 className="text-base sm:text-lg md:text-xl lg:text-[1.75rem] font-bold leading-tight"
+                    style={{
+                      fontFamily: "'Playfair Display', Georgia, serif",
+                      background: 'linear-gradient(180deg, #FFFFFF 0%, #F5F5F0 30%, #FFD700 60%, #D4AF37 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                      letterSpacing: '0.05em',
+                      filter: 'drop-shadow(0 2px 10px rgba(212, 175, 55, 0.3))'
+                    }}>
                     {branding.title}
                   </h1>
-                  <p style={{
-                    fontSize: '0.75rem',
-                    fontFamily: "'Montserrat', sans-serif",
-                    fontWeight: 500,
-                    color: '#D4AF37',
-                    letterSpacing: '0.15em',
-                    textTransform: 'uppercase',
-                    opacity: 0.9
-                  }}>
+                  <p className="text-[0.5rem] sm:text-[0.6rem] md:text-xs uppercase tracking-wider opacity-90 hidden sm:block"
+                    style={{
+                      fontFamily: "'Montserrat', sans-serif",
+                      fontWeight: 500,
+                      color: '#D4AF37',
+                      letterSpacing: '0.15em'
+                    }}>
                     {branding.subtitle}
                   </p>
                 </div>
@@ -244,12 +230,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </div>
 
             {/* Right Side - User Info & Status */}
-            <div className="flex items-center gap-3 relative z-[100]">
+            <div className="flex items-center gap-1 sm:gap-3 relative z-[100]">
               {/* Ultra-Premium User Menu */}
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="group relative flex items-center gap-2 pl-2 pr-4 py-1.5 rounded-full transition-all duration-500 overflow-hidden"
+                  className="group relative flex items-center gap-1 sm:gap-2 pl-1 sm:pl-2 pr-2 sm:pr-4 py-1 sm:py-1.5 rounded-full transition-all duration-500 overflow-hidden"
                   style={{
                     background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(26, 26, 26, 0.9) 50%, rgba(0, 0, 0, 0.8) 100%)',
                     border: '1.5px solid rgba(212, 175, 55, 0.5)',
@@ -275,25 +261,19 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     borderRadius: '50%',
                     background: 'linear-gradient(135deg, #D4AF37 0%, #F0D770 50%, #D4AF37 100%)'
                   }}>
-                    <div style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.5)'
-                    }}>
-                      <span style={{
-                        fontSize: '15px',
-                        fontWeight: 800,
-                        background: 'linear-gradient(135deg, #F0D770 0%, #D4AF37 100%)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        backgroundClip: 'text',
-                        filter: 'drop-shadow(0 1px 2px rgba(212, 175, 55, 0.5))'
+                    <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center"
+                      style={{
+                        background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)',
+                        boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.5)'
                       }}>
+                      <span className="text-xs sm:text-sm font-extrabold"
+                        style={{
+                          background: 'linear-gradient(135deg, #F0D770 0%, #D4AF37 100%)',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          backgroundClip: 'text',
+                          filter: 'drop-shadow(0 1px 2px rgba(212, 175, 55, 0.5))'
+                        }}>
                         {user?.name?.charAt(0).toUpperCase() || 'U'}
                       </span>
                     </div>
@@ -312,7 +292,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   </div>
                   
                   {/* User Name Only */}
-                  <span className="relative z-10 text-sm font-semibold max-w-[100px] truncate" style={{
+                  <span className="relative z-10 text-xs sm:text-sm font-semibold max-w-[60px] sm:max-w-[100px] truncate hidden sm:inline" style={{
                     background: 'linear-gradient(135deg, #FFFFFF 0%, #E5E5E5 50%, #D4AF37 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
@@ -322,10 +302,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   
                   {/* Dropdown Arrow */}
                   <svg
-                    className="relative z-10 transition-transform duration-300 ml-1"
+                    className="relative z-10 transition-transform duration-300 ml-0.5 sm:ml-1 w-2.5 h-2.5 sm:w-3 sm:h-3"
                     style={{
-                      width: '12px',
-                      height: '12px',
                       color: '#D4AF37',
                       transform: showUserMenu ? 'rotate(180deg)' : 'rotate(0deg)',
                       filter: 'drop-shadow(0 1px 2px rgba(212, 175, 55, 0.4))'
@@ -508,6 +486,21 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <main className="flex-1 overflow-hidden">
         {children}
       </main>
+
+      {/* Footer */}
+      <footer className="border-t py-3 px-4 flex-shrink-0" style={{
+        borderColor: 'rgba(212, 175, 55, 0.2)',
+        background: 'rgba(0, 0, 0, 0.5)',
+        backdropFilter: 'blur(10px)'
+      }}>
+        <p className="text-center text-xs sm:text-sm" style={{
+          color: 'rgba(160, 160, 165, 0.8)',
+          fontFamily: "'Montserrat', sans-serif",
+          letterSpacing: '0.05em'
+        }}>
+          © {new Date().getFullYear()} Sports Auction. All rights reserved.
+        </p>
+      </footer>
 
       <style>{`
         @keyframes float {

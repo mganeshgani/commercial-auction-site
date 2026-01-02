@@ -1,43 +1,55 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { Team, Player } from '../types';
 import { initializeSocket } from '../services/socket';
 import { useAuth } from '../contexts/AuthContext';
+import { resultsService, clearCache } from '../services/api';
 
 const ResultsPage: React.FC = () => {
   const { isAuctioneer } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [playerToDelete, setPlayerToDelete] = useState<Player | null>(null);
   const [playerToChangeTeam, setPlayerToChangeTeam] = useState<Player | null>(null);
   const [newTeamId, setNewTeamId] = useState<string>('');
-  const [stats, setStats] = useState({
-    total: 0,
-    sold: 0,
-    unsold: 0,
-    totalSpent: 0
-  });
-
+  
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
-  const handleDeletePlayer = async (player: Player) => {
+  // Memoize stats calculation
+  const stats = useMemo(() => {
+    const sold = players.filter((p: Player) => p.status === 'sold');
+    const unsold = players.filter((p: Player) => p.status === 'unsold');
+    const totalSpent = sold.reduce((sum: number, p: Player) => sum + (p.soldAmount || 0), 0);
+    
+    return {
+      total: players.length,
+      sold: sold.length,
+      unsold: unsold.length,
+      totalSpent
+    };
+  }, [players]);
+
+  const handleDeletePlayer = useCallback(async (player: Player) => {
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`${API_URL}/players/${player._id}/remove-from-team`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      clearCache();
       setPlayerToDelete(null);
       setSelectedTeam(null);
-      fetchData();
+      const data = await resultsService.getResultsData(false);
+      setTeams(data.teams);
+      setPlayers(data.players);
     } catch (error) {
       console.error('Error removing player from team:', error);
       alert('Failed to remove player from team');
     }
-  };
+  }, [API_URL]);
 
-  const handleChangeTeam = async () => {
+  const handleChangeTeam = useCallback(async () => {
     if (!playerToChangeTeam || !newTeamId) {
       alert('Please select a team');
       return;
@@ -45,7 +57,6 @@ const ResultsPage: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      // Update player with new team
       await axios.put(`${API_URL}/players/${playerToChangeTeam._id}`, {
         team: newTeamId,
         status: 'sold',
@@ -54,88 +65,74 @@ const ResultsPage: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
+      clearCache();
       setPlayerToChangeTeam(null);
       setNewTeamId('');
       setSelectedTeam(null);
-      fetchData();
+      const data = await resultsService.getResultsData(false);
+      setTeams(data.teams);
+      setPlayers(data.players);
     } catch (error: any) {
       console.error('Error changing player team:', error);
       const errorMessage = error.response?.data?.error || error.message || 'Failed to change player team';
       alert(errorMessage);
     }
-  };
+  }, [playerToChangeTeam, newTeamId, API_URL]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (useCache = true) => {
     try {
-      console.log('📊 Fetching latest teams and players data...');
-      const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
-      const [teamsRes, playersRes] = await Promise.all([
-        axios.get(`${API_URL}/teams`, { headers }),
-        axios.get(`${API_URL}/players`, { headers })
-      ]);
+      console.log('📊 Fetching results data...');
+      const data = await resultsService.getResultsData(useCache);
       
-      console.log('✅ Teams fetched:', teamsRes.data.length);
-      console.log('✅ Players fetched:', playersRes.data.length);
+      console.log('✅ Teams fetched:', data.teams.length);
+      console.log('✅ Players fetched:', data.players.length);
       
-      setTeams(teamsRes.data);
-      setPlayers(playersRes.data);
-      
-      const sold = playersRes.data.filter((p: Player) => p.status === 'sold');
-      const unsold = playersRes.data.filter((p: Player) => p.status === 'unsold');
-      const totalSpent = sold.reduce((sum: number, p: Player) => sum + (p.soldAmount || 0), 0);
-      
-      setStats({
-        total: playersRes.data.length,
-        sold: sold.length,
-        unsold: unsold.length,
-        totalSpent
-      });
-      
-      console.log('📈 Stats updated:', { 
-        total: playersRes.data.length, 
-        sold: sold.length, 
-        unsold: unsold.length 
-      });
+      setTeams(data.teams);
+      setPlayers(data.players);
     } catch (error) {
       console.error('❌ Error fetching data:', error);
-    } finally {
-      setLoading(false);
     }
-  }, [API_URL]);
+  }, []);
 
   useEffect(() => {
-    fetchData();
+    const loadData = async () => {
+      setLoading(true);
+      await fetchData(true); // Use cache
+      setLoading(false);
+    };
+    loadData();
     
-    // Setup Socket.io connection for real-time updates with auctioneer isolation
+    // Setup Socket.io for real-time updates
     const socket = initializeSocket();
 
     socket.on('connect', () => {
-      console.log('✓ Results page connected to isolated socket room');
+      console.log('✓ Results page connected to socket');
     });
 
-    // OPTIMIZED: Debounce rapid socket events to prevent fetch spam
+    // Debounced fetch for socket events (no loading state)
     let fetchTimeout: NodeJS.Timeout | null = null;
     const debouncedFetch = () => {
       if (fetchTimeout) clearTimeout(fetchTimeout);
       fetchTimeout = setTimeout(() => {
-        console.log('🔄 Debounced fetch triggered');
-        fetchData();
-      }, 300); // Wait 300ms before fetching
+        console.log('🔄 Background update triggered');
+        clearCache();
+        fetchData(false); // Fetch fresh data without loading
+      }, 300);
     };
 
     socket.on('playerSold', debouncedFetch);
     socket.on('playerMarkedUnsold', debouncedFetch);
     socket.on('dataReset', () => {
-      console.log('Data reset - immediate refresh');
-      fetchData();
+      console.log('Data reset - clearing cache');
+      clearCache();
+      fetchData(false);
     });
     socket.on('playerUpdated', debouncedFetch);
     socket.on('teamUpdated', debouncedFetch);
     socket.on('playerRemovedFromTeam', debouncedFetch);
 
     socket.on('disconnect', () => {
-      console.log('✗ Results page disconnected from Socket.io');
+      console.log('✗ Results page disconnected');
     });
     
     return () => {
@@ -171,81 +168,87 @@ const ResultsPage: React.FC = () => {
     <div className="h-full flex flex-col overflow-hidden" style={{
       background: 'linear-gradient(160deg, #000000 0%, #0a0a0a 25%, #1a1a1a 50%, #0f172a 75%, #1a1a1a 100%)'
     }}>
-      {/* Elegant Premium Horizontal Header - Responsive */}
+      {/* Ultra-Compact Premium Header */}
       <div className="flex-shrink-0 backdrop-blur-xl border-b shadow-xl" style={{
         background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(13, 17, 23, 0.9) 50%, rgba(0, 0, 0, 0.95) 100%)',
-        borderBottom: '2px solid rgba(212, 175, 55, 0.3)',
-        boxShadow: '0 4px 30px rgba(0, 0, 0, 0.8), 0 0 40px rgba(212, 175, 55, 0.1)'
+        borderBottom: '1.5px solid rgba(212, 175, 55, 0.3)',
+        boxShadow: '0 2px 20px rgba(0, 0, 0, 0.6), 0 0 30px rgba(212, 175, 55, 0.08)',
+        padding: '0.625rem 0.5rem'
       }}>
-        <div className="px-3 sm:px-4 md:px-6 py-3">
-          {/* Responsive Layout: Stacked on Mobile, Horizontal on Desktop */}
-          <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             {/* Left: Title with LIVE badge */}
-            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight whitespace-nowrap" style={{
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <h1 className="text-lg sm:text-xl font-black tracking-tight whitespace-nowrap leading-none" style={{
                 background: 'linear-gradient(135deg, #FFFFFF 0%, #F0D770 50%, #D4AF37 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
-                textShadow: '0 0 40px rgba(212, 175, 55, 0.3)'
+                textShadow: '0 0 30px rgba(212, 175, 55, 0.3)'
               }}>
                 Auction Results
               </h1>
-              <div className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full" style={{
+              <div className="flex items-center gap-1 px-2 py-1 rounded-full" style={{
                 background: 'rgba(16, 185, 129, 0.15)',
                 border: '1px solid rgba(16, 185, 129, 0.4)',
-                boxShadow: '0 0 15px rgba(16, 185, 129, 0.3)'
+                boxShadow: '0 0 10px rgba(16, 185, 129, 0.25)'
               }}>
-                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full animate-pulse" style={{ background: '#10b981' }}></div>
+                <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#10b981' }}></div>
                 <span className="text-[10px] sm:text-xs font-bold text-emerald-400">LIVE</span>
               </div>
             </div>
 
-            {/* Center: Ultra-Premium Stats - Responsive Grid */}
+            {/* Right: Stats */}
             {!loading && (
-              <div className="flex items-center gap-2 sm:gap-3 flex-1 overflow-x-auto pb-1 lg:pb-0 lg:justify-center">
-                <div className="backdrop-blur-md rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 border flex-shrink-0" style={{
+              <div className="flex items-center gap-1.5 overflow-x-auto lg:ml-auto">
+                <div className="backdrop-blur-sm rounded-lg px-1.5 sm:px-2 py-1 flex-shrink-0" style={{
                   background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(10, 10, 10, 0.6) 50%, rgba(0, 0, 0, 0.7) 100%)',
                   border: '1px solid rgba(255, 255, 255, 0.15)',
-                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.4)'
                 }}>
-                  <p className="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-0.5">Total</p>
-                  <p className="text-lg sm:text-xl font-black text-white">{stats.total}</p>
+                  <div>
+                    <p className="text-[8px] sm:text-[9px] text-slate-400 uppercase tracking-wider">Total</p>
+                    <p className="text-xs sm:text-sm font-black text-white leading-none">{stats.total}</p>
+                  </div>
                 </div>
-                <div className="backdrop-blur-md rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 border flex-shrink-0" style={{
+                <div className="backdrop-blur-sm rounded-lg px-1.5 sm:px-2 py-1 flex-shrink-0" style={{
                   background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(16, 185, 129, 0.1) 100%)',
                   border: '1px solid rgba(16, 185, 129, 0.4)',
-                  boxShadow: '0 4px 15px rgba(16, 185, 129, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                  boxShadow: '0 2px 10px rgba(16, 185, 129, 0.2)'
                 }}>
-                  <p className="text-[9px] sm:text-[10px] text-emerald-400/80 uppercase tracking-widest font-bold mb-0.5">Sold</p>
-                  <p className="text-lg sm:text-xl font-black text-emerald-400">{stats.sold}</p>
+                  <div>
+                    <p className="text-[8px] sm:text-[9px] text-emerald-400/80 uppercase tracking-wider">Sold</p>
+                    <p className="text-xs sm:text-sm font-black text-emerald-400 leading-none">{stats.sold}</p>
+                  </div>
                 </div>
-                <div className="backdrop-blur-md rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 border flex-shrink-0" style={{
+                <div className="backdrop-blur-sm rounded-lg px-1.5 sm:px-2 py-1 flex-shrink-0" style={{
                   background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(244, 63, 94, 0.1) 100%)',
                   border: '1px solid rgba(244, 63, 94, 0.4)',
-                  boxShadow: '0 4px 15px rgba(244, 63, 94, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                  boxShadow: '0 2px 10px rgba(244, 63, 94, 0.2)'
                 }}>
-                  <p className="text-[9px] sm:text-[10px] text-rose-400/80 uppercase tracking-widest font-bold mb-0.5">Unsold</p>
-                  <p className="text-lg sm:text-xl font-black text-rose-400">{stats.unsold}</p>
+                  <div>
+                    <p className="text-[8px] sm:text-[9px] text-rose-400/80 uppercase tracking-wider">Unsold</p>
+                    <p className="text-xs sm:text-sm font-black text-rose-400 leading-none">{stats.unsold}</p>
+                  </div>
                 </div>
-                <div className="backdrop-blur-md rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 border flex-shrink-0" style={{
+                <div className="backdrop-blur-sm rounded-lg px-1.5 sm:px-2 py-1 flex-shrink-0" style={{
                   background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(212, 175, 55, 0.1) 100%)',
                   border: '1px solid rgba(212, 175, 55, 0.4)',
-                  boxShadow: '0 4px 15px rgba(212, 175, 55, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                  boxShadow: '0 2px 10px rgba(212, 175, 55, 0.25)'
                 }}>
-                  <p className="text-[9px] sm:text-[10px] text-amber-400/80 uppercase tracking-widest font-bold mb-0.5">Spent</p>
-                  <p className="text-lg sm:text-xl font-black" style={{
-                    background: 'linear-gradient(135deg, #D4AF37 0%, #F0D770 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text'
-                  }}>
-                    ₹{(stats.totalSpent / 1000).toFixed(0)}K
-                  </p>
+                  <div>
+                    <p className="text-[8px] sm:text-[9px] text-amber-400/80 uppercase tracking-wider">Spent</p>
+                    <p className="text-xs sm:text-sm font-black leading-none" style={{
+                      background: 'linear-gradient(135deg, #D4AF37 0%, #F0D770 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text'
+                    }}>
+                      ₹{(stats.totalSpent / 1000).toFixed(0)}K
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
-          </div>
         </div>
       </div>
 
@@ -436,11 +439,11 @@ const ResultsPage: React.FC = () => {
       {/* Team Details Modal */}
       {selectedTeam && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm"
           onClick={() => setSelectedTeam(null)}
         >
           <div 
-            className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl"
+            className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-xl sm:rounded-2xl"
             style={{
               background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(10, 10, 10, 0.9) 50%, rgba(0, 0, 0, 0.95) 100%)',
               border: '2px solid rgba(212, 175, 55, 0.4)',
@@ -449,13 +452,13 @@ const ResultsPage: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="sticky top-0 z-10 px-6 py-4 border-b" style={{
+            <div className="sticky top-0 z-10 px-4 sm:px-6 py-3 sm:py-4 border-b" style={{
               background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(0, 0, 0, 0.8) 100%)',
               borderBottom: '1px solid rgba(212, 175, 55, 0.3)'
             }}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-3xl font-black tracking-tight" style={{
+                  <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight" style={{
                     background: 'linear-gradient(135deg, #FFFFFF 0%, #F0D770 50%, #D4AF37 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
@@ -464,23 +467,23 @@ const ResultsPage: React.FC = () => {
                   }}>
                     {selectedTeam.name}
                   </h2>
-                  <p className="text-sm text-gray-400 mt-1 font-medium">Team Squad Overview</p>
+                  <p className="text-xs sm:text-sm text-gray-400 mt-1 font-medium">Team Squad Overview</p>
                 </div>
                 <button
                   onClick={() => setSelectedTeam(null)}
-                  className="group p-2 rounded-lg transition-all hover:bg-red-500/20 hover:scale-110"
+                  className="group p-1.5 sm:p-2 rounded-lg transition-all hover:bg-red-500/20 hover:scale-110"
                   style={{
                     border: '1px solid rgba(239, 68, 68, 0.3)'
                   }}
                 >
-                  <svg className="w-6 h-6 text-red-400 group-hover:text-red-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-red-400 group-hover:text-red-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
 
               {/* Team Stats Summary */}
-              <div className="flex gap-3 mt-4">
+              <div className="flex gap-2 sm:gap-3 mt-3 sm:mt-4 overflow-x-auto pb-1">
                 {(() => {
                   // Use team.players array if available, otherwise filter from global players
                   const teamPlayers = selectedTeam.players && selectedTeam.players.length > 0
@@ -498,33 +501,33 @@ const ResultsPage: React.FC = () => {
                   
                   return (
                     <>
-                      <div className="flex-1 backdrop-blur-sm rounded-lg px-3 py-2" style={{
+                      <div className="flex-shrink-0 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2" style={{
                         background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(10, 10, 10, 0.6) 50%, rgba(0, 0, 0, 0.7) 100%)',
                         border: '1px solid rgba(212, 175, 55, 0.3)'
                       }}>
-                        <p className="text-xs text-gray-400 uppercase tracking-wider">Total Players</p>
-                        <p className="text-2xl font-black" style={{ color: '#D4AF37' }}>{teamPlayers.length}</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Total Players</p>
+                        <p className="text-lg sm:text-xl md:text-2xl font-black" style={{ color: '#D4AF37' }}>{teamPlayers.length}</p>
                       </div>
-                      <div className="flex-1 backdrop-blur-sm rounded-lg px-3 py-2" style={{
+                      <div className="flex-shrink-0 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2" style={{
                         background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(10, 10, 10, 0.6) 50%, rgba(0, 0, 0, 0.7) 100%)',
                         border: '1px solid rgba(212, 175, 55, 0.3)'
                       }}>
-                        <p className="text-xs text-gray-400 uppercase tracking-wider">Budget Spent</p>
-                        <p className="text-2xl font-black" style={{ color: '#D4AF37' }}>₹{(actualSpent / 1000).toFixed(1)}K</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Budget Spent</p>
+                        <p className="text-lg sm:text-xl md:text-2xl font-black" style={{ color: '#D4AF37' }}>₹{(actualSpent / 1000).toFixed(1)}K</p>
                       </div>
-                      <div className="flex-1 backdrop-blur-sm rounded-lg px-3 py-2" style={{
+                      <div className="flex-shrink-0 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2" style={{
                         background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(10, 10, 10, 0.6) 50%, rgba(0, 0, 0, 0.7) 100%)',
                         border: '1px solid rgba(212, 175, 55, 0.3)'
                       }}>
-                        <p className="text-xs text-gray-400 uppercase tracking-wider">Remaining</p>
-                        <p className="text-2xl font-black text-emerald-400">₹{(actualRemaining / 1000).toFixed(1)}K</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Remaining</p>
+                        <p className="text-lg sm:text-xl md:text-2xl font-black text-emerald-400">₹{(actualRemaining / 1000).toFixed(1)}K</p>
                       </div>
-                      <div className="flex-1 backdrop-blur-sm rounded-lg px-3 py-2" style={{
+                      <div className="flex-shrink-0 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2" style={{
                         background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(10, 10, 10, 0.6) 50%, rgba(0, 0, 0, 0.7) 100%)',
                         border: '1px solid rgba(212, 175, 55, 0.3)'
                       }}>
-                        <p className="text-xs text-gray-400 uppercase tracking-wider">Slots</p>
-                        <p className="text-2xl font-black" style={{ color: '#D4AF37' }}>{selectedTeam.filledSlots || teamPlayers.length}/{selectedTeam.totalSlots}</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">Slots</p>
+                        <p className="text-lg sm:text-xl md:text-2xl font-black" style={{ color: '#D4AF37' }}>{selectedTeam.filledSlots || teamPlayers.length}/{selectedTeam.totalSlots}</p>
                       </div>
                     </>
                   );
@@ -533,7 +536,7 @@ const ResultsPage: React.FC = () => {
             </div>
 
             {/* Players Grid */}
-            <div className="overflow-y-auto p-6 custom-scrollbar" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+            <div className="overflow-y-auto p-4 sm:p-6 custom-scrollbar" style={{ maxHeight: 'calc(90vh - 200px)' }}>
               {(() => {
                 // Use team.players array if available, otherwise filter from global players
                 const teamPlayers = selectedTeam.players && selectedTeam.players.length > 0
@@ -650,45 +653,45 @@ const ResultsPage: React.FC = () => {
                         </div>
 
                         {/* Action Buttons - Separate Section at Bottom */}
-                        <div className="relative p-3 border-t" style={{
+                        <div className="relative p-2 sm:p-3 border-t" style={{
                           borderColor: 'rgba(212, 175, 55, 0.2)',
                           background: 'linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.5))'
                         }}>
                           {isAuctioneer ? (
-                          <div className="flex gap-2">
+                          <div className="flex gap-1.5 sm:gap-2">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setPlayerToChangeTeam(player);
                               }}
-                              className="flex-1 py-2.5 px-3 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2"
+                              className="flex-1 py-2 sm:py-2.5 px-2 sm:px-3 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-1 sm:gap-2"
                               title="Change player team"
                             >
-                              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                               </svg>
-                              <span className="text-sm font-bold text-white">Change</span>
+                              <span className="text-xs sm:text-sm font-bold text-white">Change</span>
                             </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setPlayerToDelete(player);
                               }}
-                              className="flex-1 py-2.5 px-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-red-500/30 flex items-center justify-center gap-2"
+                              className="flex-1 py-2 sm:py-2.5 px-2 sm:px-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-red-500/30 flex items-center justify-center gap-1 sm:gap-2"
                               title="Remove player from team"
                             >
-                              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
-                              <span className="text-sm font-bold text-white">Remove</span>
+                              <span className="text-xs sm:text-sm font-bold text-white">Remove</span>
                             </button>
                           </div>
                           ) : (
-                            <div className="mt-3 px-3 py-2 rounded-lg text-center" style={{
+                            <div className="mt-2 sm:mt-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-center" style={{
                               background: 'rgba(100, 100, 100, 0.2)',
                               border: '1px solid rgba(150, 150, 150, 0.3)'
                             }}>
-                              <p className="text-gray-400 text-xs">🔒 Viewer Mode</p>
+                              <p className="text-gray-400 text-[10px] sm:text-xs">🔒 Viewer Mode</p>
                             </div>
                           )}
                         </div>
@@ -705,14 +708,14 @@ const ResultsPage: React.FC = () => {
       {/* Change Team Modal */}
       {playerToChangeTeam && (
         <div 
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm"
           onClick={() => {
             setPlayerToChangeTeam(null);
             setNewTeamId('');
           }}
         >
           <div 
-            className="relative w-full max-w-2xl overflow-hidden rounded-2xl"
+            className="relative w-full max-w-2xl overflow-hidden rounded-xl sm:rounded-2xl"
             style={{
               background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(10, 20, 30, 0.9) 50%, rgba(0, 0, 0, 0.95) 100%)',
               border: '2px solid rgba(59, 130, 246, 0.4)',
@@ -721,17 +724,17 @@ const ResultsPage: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="px-6 py-4 border-b" style={{
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b" style={{
               background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(0, 0, 0, 0.8) 100%)',
               borderBottom: '1px solid rgba(59, 130, 246, 0.3)'
             }}>
-              <h2 className="text-2xl font-black tracking-tight flex items-center gap-3" style={{
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 sm:gap-3" style={{
                 background: 'linear-gradient(135deg, #FFFFFF 0%, #93c5fd 50%, #3b82f6 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text'
               }}>
-                <svg className="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
                 Change Player Team
@@ -739,29 +742,29 @@ const ResultsPage: React.FC = () => {
             </div>
 
             {/* Body */}
-            <div className="p-6">
-              <div className="bg-slate-900/50 rounded-xl p-4 border border-blue-500/30 mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-2xl font-black text-white">
+            <div className="p-4 sm:p-6">
+              <div className="bg-slate-900/50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-blue-500/30 mb-4 sm:mb-6">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-xl sm:text-2xl font-black text-white">
                     {playerToChangeTeam.name.charAt(0)}
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-white">{playerToChangeTeam.name}</h3>
+                    <h3 className="text-base sm:text-lg font-black text-white">{playerToChangeTeam.name}</h3>
                     {playerToChangeTeam.class && (
-                      <p className="text-xs text-gray-400">
+                      <p className="text-[10px] sm:text-xs text-gray-400">
                         {playerToChangeTeam.class}
                       </p>
                     )}
-                    <p className="text-xs text-blue-400 font-bold">{playerToChangeTeam.position} • ₹{(playerToChangeTeam.soldAmount! / 1000).toFixed(1)}K</p>
+                    <p className="text-[10px] sm:text-xs text-blue-400 font-bold">{playerToChangeTeam.position} • ₹{(playerToChangeTeam.soldAmount! / 1000).toFixed(1)}K</p>
                   </div>
                 </div>
               </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-bold text-gray-300 mb-3">
+              <div className="mb-3 sm:mb-4">
+                <label className="block text-xs sm:text-sm font-bold text-gray-300 mb-2 sm:mb-3">
                   Select New Team
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-96 overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 max-h-64 sm:max-h-96 overflow-y-auto custom-scrollbar">
                   {teams
                     .filter(team => {
                       // Filter out current team
@@ -781,7 +784,7 @@ const ResultsPage: React.FC = () => {
                           key={team._id}
                           onClick={() => isAvailable && setNewTeamId(team._id)}
                           disabled={!isAvailable}
-                          className={`p-4 rounded-xl border-2 transition-all duration-300 text-left ${
+                          className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 transition-all duration-300 text-left ${
                             isSelected 
                               ? 'border-blue-500 bg-blue-500/20 scale-105' 
                               : isAvailable
@@ -796,8 +799,8 @@ const ResultsPage: React.FC = () => {
                                 : 'rgba(0, 0, 0, 0.3)'
                           }}
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className={`font-black text-lg ${
+                          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                            <h3 className={`font-black text-base sm:text-lg ${
                               isSelected ? 'text-blue-400' : isAvailable ? 'text-white' : 'text-gray-600'
                             }`}>
                               {team.name}
@@ -852,26 +855,26 @@ const ResultsPage: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 bg-slate-900/50 border-t border-blue-500/30 flex gap-3">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 bg-slate-900/50 border-t border-blue-500/30 flex gap-2 sm:gap-3">
               <button
                 onClick={() => {
                   setPlayerToChangeTeam(null);
                   setNewTeamId('');
                 }}
-                className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-bold text-white transition-all"
+                className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-700 hover:bg-gray-600 rounded-lg sm:rounded-xl font-bold text-white text-sm sm:text-base transition-all"
               >
                 Cancel
               </button>
               <button
                 onClick={handleChangeTeam}
                 disabled={!newTeamId}
-                className={`flex-1 px-4 py-3 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-2 ${
+                className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-bold text-white text-sm sm:text-base transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${
                   newTeamId
                     ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600'
                     : 'bg-gray-700 opacity-50 cursor-not-allowed'
                 }`}
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
                 Change Team
@@ -884,11 +887,11 @@ const ResultsPage: React.FC = () => {
       {/* Delete Confirmation Modal */}
       {playerToDelete && (
         <div 
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm"
           onClick={() => setPlayerToDelete(null)}
         >
           <div 
-            className="relative w-full max-w-md overflow-hidden rounded-2xl"
+            className="relative w-full max-w-md overflow-hidden rounded-xl sm:rounded-2xl"
             style={{
               background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(20, 10, 10, 0.9) 50%, rgba(0, 0, 0, 0.95) 100%)',
               border: '2px solid rgba(239, 68, 68, 0.4)',
@@ -897,17 +900,17 @@ const ResultsPage: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="px-6 py-4 border-b" style={{
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b" style={{
               background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(0, 0, 0, 0.8) 100%)',
               borderBottom: '1px solid rgba(239, 68, 68, 0.3)'
             }}>
-              <h2 className="text-2xl font-black tracking-tight flex items-center gap-3" style={{
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 sm:gap-3" style={{
                 background: 'linear-gradient(135deg, #FFFFFF 0%, #fca5a5 50%, #ef4444 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text'
               }}>
-                <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 Remove Player?
@@ -915,38 +918,38 @@ const ResultsPage: React.FC = () => {
             </div>
 
             {/* Body */}
-            <div className="p-6">
-              <div className="bg-slate-900/50 rounded-xl p-4 border border-red-500/30 mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-2xl font-black text-white">
+            <div className="p-4 sm:p-6">
+              <div className="bg-slate-900/50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-red-500/30 mb-4 sm:mb-6">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-xl sm:text-2xl font-black text-white">
                     {playerToDelete.name.charAt(0)}
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-white">{playerToDelete.name}</h3>
+                    <h3 className="text-base sm:text-lg font-black text-white">{playerToDelete.name}</h3>
                     {playerToDelete.class && (
-                      <p className="text-xs text-gray-400">
+                      <p className="text-[10px] sm:text-xs text-gray-400">
                         {playerToDelete.class}
                       </p>
                     )}
-                    <p className="text-xs text-red-400 font-bold">{playerToDelete.position} • ₹{(playerToDelete.soldAmount! / 1000).toFixed(1)}K</p>
+                    <p className="text-[10px] sm:text-xs text-red-400 font-bold">{playerToDelete.position} • ₹{(playerToDelete.soldAmount! / 1000).toFixed(1)}K</p>
                   </div>
                 </div>
               </div>
 
-              <p className="text-gray-300 text-sm mb-2">
+              <p className="text-gray-300 text-xs sm:text-sm mb-2">
                 Are you sure you want to remove <span className="font-bold text-white">{playerToDelete.name}</span> from the team?
               </p>
-              <p className="text-gray-400 text-xs">
+              <p className="text-gray-400 text-[10px] sm:text-xs">
                 • Player will be marked as <span className="text-amber-400">available</span> again<br/>
                 • Amount <span className="text-emerald-400">₹{(playerToDelete.soldAmount! / 1000).toFixed(1)}K</span> will be refunded to team's budget
               </p>
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 bg-slate-900/50 border-t border-red-500/30 flex gap-3">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 bg-slate-900/50 border-t border-red-500/30 flex gap-2 sm:gap-3">
               <button
                 onClick={() => setPlayerToDelete(null)}
-                className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-bold text-white transition-all"
+                className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-700 hover:bg-gray-600 rounded-lg sm:rounded-xl font-bold text-white text-sm sm:text-base transition-all"
               >
                 Cancel
               </button>

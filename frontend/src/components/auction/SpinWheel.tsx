@@ -101,28 +101,6 @@ const SpinWheel: React.FC<SpinWheelProps> = ({ onSpinComplete, isSpinning }) => 
           <div className="pointer-arrow"></div>
         </div>
       </div>
-
-      {isSpinning && (
-        <div className="spin-text">
-          <div className="spin-text-container">
-            <div className="spin-icon">
-              <svg style={{ width: '2rem', height: '2rem', animation: 'spin 1s linear infinite' }} fill="#D4AF37" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-              </svg>
-            </div>
-            <p style={{ 
-              color: '#D4AF37', 
-              fontSize: '1.5rem',
-              fontWeight: '600',
-              letterSpacing: '0.05em',
-              textShadow: '0 0 20px rgba(212, 175, 55, 0.4), 0 2px 10px rgba(0,0,0,0.5)',
-              marginTop: '0.5rem'
-            }}>
-              Selecting Player...
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

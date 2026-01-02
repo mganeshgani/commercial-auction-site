@@ -156,58 +156,58 @@ const TeamsPage: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Compact Header Section */}
+      {/* Ultra-Compact Premium Header */}
       <div className="flex-shrink-0" style={{
         background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(13, 17, 23, 0.9) 50%, rgba(0, 0, 0, 0.95) 100%)',
-        borderBottom: '2px solid rgba(212, 175, 55, 0.3)',
-        boxShadow: '0 4px 30px rgba(0, 0, 0, 0.8), 0 0 40px rgba(212, 175, 55, 0.1)',
-        padding: '0.75rem 1.5rem'
+        borderBottom: '1.5px solid rgba(212, 175, 55, 0.3)',
+        boxShadow: '0 2px 20px rgba(0, 0, 0, 0.6), 0 0 30px rgba(212, 175, 55, 0.08)',
+        padding: '0.375rem 0.5rem'
       }}>
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           {/* Title & Stats - Combined */}
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
             <div>
-              <h1 className="text-3xl font-black tracking-tight" style={{
+              <h1 className="text-base sm:text-lg font-black tracking-tight leading-none" style={{
                 background: 'linear-gradient(135deg, #FFFFFF 0%, #F0D770 50%, #D4AF37 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
-                textShadow: '0 0 40px rgba(212, 175, 55, 0.3)'
+                textShadow: '0 0 30px rgba(212, 175, 55, 0.3)'
               }}>Team Management</h1>
-              <p className="text-gray-400 text-sm font-medium tracking-wide">Manage auction teams</p>
+              <p className="text-gray-400 text-[10px] sm:text-xs font-medium tracking-wide mt-0.5">Manage auction teams</p>
             </div>
 
-            {/* Inline Stats */}
+            {/* Inline Stats - Horizontal scroll on mobile */}
             {!loading && teams.length > 0 && (
-              <div className="flex items-center gap-3 ml-4">
-                <div className="backdrop-blur-sm rounded-lg px-3 py-2" style={{
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 w-full sm:w-auto">
+                <div className="backdrop-blur-sm rounded-lg px-1.5 sm:px-2 py-1 flex-shrink-0" style={{
                   background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(10, 10, 10, 0.6) 50%, rgba(0, 0, 0, 0.7) 100%)',
                   border: '1px solid rgba(212, 175, 55, 0.3)',
-                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.5)'
+                  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.4)'
                 }}>
                   <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wider">Teams</p>
-                    <p className="text-lg font-black" style={{ color: '#D4AF37' }}>{teams.length}</p>
+                    <p className="text-[8px] sm:text-[9px] text-gray-400 uppercase tracking-wider">Teams</p>
+                    <p className="text-xs sm:text-sm font-black leading-none" style={{ color: '#D4AF37' }}>{teams.length}</p>
                   </div>
                 </div>
-                <div className="backdrop-blur-sm rounded-lg px-3 py-2" style={{
+                <div className="backdrop-blur-sm rounded-lg px-1.5 sm:px-2 py-1 flex-shrink-0" style={{
                   background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(10, 10, 10, 0.6) 50%, rgba(0, 0, 0, 0.7) 100%)',
                   border: '1px solid rgba(212, 175, 55, 0.3)',
-                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.5)'
+                  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.4)'
                 }}>
                   <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wider">Budget</p>
-                    <p className="text-lg font-black" style={{ color: '#D4AF37' }}>₹{(teams.reduce((sum, t) => sum + (t.budget || 0), 0) / 1000).toFixed(0)}K</p>
+                    <p className="text-[8px] sm:text-[9px] text-gray-400 uppercase tracking-wider">Budget</p>
+                    <p className="text-xs sm:text-sm font-black leading-none" style={{ color: '#D4AF37' }}>₹{(teams.reduce((sum, t) => sum + (t.budget || 0), 0) / 1000).toFixed(0)}K</p>
                   </div>
                 </div>
-                <div className="backdrop-blur-sm rounded-lg px-3 py-2" style={{
+                <div className="backdrop-blur-sm rounded-lg px-1.5 sm:px-2 py-1 flex-shrink-0" style={{
                   background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(10, 10, 10, 0.6) 50%, rgba(0, 0, 0, 0.7) 100%)',
                   border: '1px solid rgba(212, 175, 55, 0.3)',
-                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.5)'
+                  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.4)'
                 }}>
                   <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wider">Players</p>
-                    <p className="text-lg font-black" style={{ color: '#D4AF37' }}>{teams.reduce((sum, t) => sum + (t.filledSlots || 0), 0)}</p>
+                    <p className="text-[8px] sm:text-[9px] text-gray-400 uppercase tracking-wider">Players</p>
+                    <p className="text-xs sm:text-sm font-black leading-none" style={{ color: '#D4AF37' }}>{teams.reduce((sum, t) => sum + (t.filledSlots || 0), 0)}</p>
                   </div>
                 </div>
               </div>
@@ -216,10 +216,10 @@ const TeamsPage: React.FC = () => {
 
           {/* Add Team Button - Only for Auctioneers */}
           {isAuctioneer && (
-          <>
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <button
             onClick={() => setShowAddModal(true)}
-            className="group px-5 py-2 rounded-lg font-bold text-sm transition-all duration-300 hover:scale-105 shadow-lg flex items-center gap-2"
+            className="group px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg font-bold text-xs sm:text-sm transition-all duration-300 hover:scale-105 shadow-lg flex items-center gap-1 sm:gap-2 flex-1 sm:flex-initial justify-center"
             style={{
               background: 'linear-gradient(135deg, #D4AF37 0%, #F0D770 50%, #D4AF37 100%)',
               border: '2px solid rgba(212, 175, 55, 0.5)',
@@ -227,22 +227,22 @@ const TeamsPage: React.FC = () => {
               color: '#000000'
             }}
           >
-            <span className="text-xl group-hover:rotate-90 transition-transform duration-300">+</span>
+            <span className="text-base sm:text-xl group-hover:rotate-90 transition-transform duration-300">+</span>
             <span>Add Team</span>
           </button>
 
           {/* Reset Auction Button */}
           <button
             onClick={() => setShowResetModal(true)}
-            className="group px-5 py-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 rounded-lg font-bold text-sm transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-red-500/50 flex items-center gap-2"
+            className="group px-3 sm:px-5 py-1.5 sm:py-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 rounded-lg font-bold text-xs sm:text-sm transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-red-500/50 flex items-center gap-1 sm:gap-2 flex-1 sm:flex-initial justify-center"
             title="Reset entire auction (delete all data)"
           >
-            <svg className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:rotate-180 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             <span>Reset</span>
           </button>
-          </>
+          </div>
           )}
         </div>
       </div>

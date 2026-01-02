@@ -234,22 +234,22 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
 
   if (loadingFields) {
     return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border border-amber-500/30 p-6 max-w-md w-full shadow-2xl">
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl sm:rounded-2xl border border-amber-500/30 p-4 sm:p-6 max-w-md w-full shadow-2xl">
           <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent"></div>
+            <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-4 border-amber-500 border-t-transparent"></div>
           </div>
-          <p className="text-center text-gray-400 mt-4">Loading form...</p>
+          <p className="text-center text-gray-400 mt-3 sm:mt-4 text-sm sm:text-base">Loading form...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border border-amber-500/30 p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-black" style={{
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl sm:rounded-2xl border border-amber-500/30 p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl font-black" style={{
             background: 'linear-gradient(135deg, #FFFFFF 0%, #F0D770 50%, #D4AF37 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
@@ -259,35 +259,35 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-white transition-colors p-1"
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           {/* Photo Upload - Check if photo field exists in form config */}
           {formFields.some(f => f.fieldType === 'file') && (
             <div>
-              <label className="block text-sm font-bold text-gray-300 mb-2">
+              <label className="block text-xs sm:text-sm font-bold text-gray-300 mb-1.5 sm:mb-2">
                 Player Photo {formFields.find(f => f.fieldType === 'file')?.required && isAddMode && <span className="text-red-400">*</span>}
               </label>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 sm:gap-4">
                 {photoPreview ? (
                   <img 
                     src={photoPreview} 
                     alt="Preview" 
-                    className="w-20 h-20 rounded-full object-cover border-4 border-amber-500/50"
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-4 border-amber-500/50"
                   />
                 ) : (
-                  <div className="w-20 h-20 rounded-full bg-gray-700 flex items-center justify-center text-3xl text-gray-400">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-700 flex items-center justify-center text-2xl sm:text-3xl text-gray-400">
                     👤
                   </div>
                 )}
                 <label className="flex-1 cursor-pointer">
-                  <div className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-center text-sm font-semibold text-white transition-colors">
+                  <div className="px-3 sm:px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-center text-xs sm:text-sm font-semibold text-white transition-colors">
                     {photo ? 'Change Photo' : isAddMode ? 'Upload Photo' : 'Update Photo'}
                   </div>
                   <input
@@ -299,7 +299,7 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
                 </label>
               </div>
               {formFields.find(f => f.fieldType === 'file')?.required && isAddMode && !photoPreview && (
-                <p className="text-xs text-gray-400 mt-1">Photo is required for new players</p>
+                <p className="text-[10px] sm:text-xs text-gray-400 mt-1">Photo is required for new players</p>
               )}
             </div>
           )}
@@ -308,23 +308,23 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
           {formFields.sort((a, b) => a.order - b.order).map(field => renderField(field))}
 
           {error && (
-            <div className="bg-red-500/20 border border-red-500/40 rounded-lg p-3 text-red-300 text-sm">
+            <div className="bg-red-500/20 border border-red-500/40 rounded-lg p-2.5 sm:p-3 text-red-300 text-xs sm:text-sm">
               {error}
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-2 sm:gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold text-white transition-colors"
+              className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold text-white text-sm sm:text-base transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold text-white transition-all duration-300 disabled:cursor-not-allowed"
+              className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold text-white text-sm sm:text-base transition-all duration-300 disabled:cursor-not-allowed"
             >
               {loading ? (
                 isAddMode ? (

@@ -277,15 +277,15 @@ const PlayerCard: React.FC<PlayerCardProps> = memo(({
         }
       `}</style>
 
-      <div className="luxury-card-container relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl shadow-2xl p-8 border border-amber-500/30">
+      <div className="luxury-card-container relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 md:p-8 border border-amber-500/30">
         {/* Ambient floating particles */}
-        <div className="absolute top-4 right-4 w-2 h-2 bg-amber-400 rounded-full floating-particle" style={{ animationDelay: '0s' }}></div>
-        <div className="absolute top-12 left-8 w-1.5 h-1.5 bg-amber-300 rounded-full floating-particle" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute bottom-8 right-12 w-2 h-2 bg-amber-500 rounded-full floating-particle" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute top-4 right-4 w-2 h-2 bg-amber-400 rounded-full floating-particle hidden sm:block" style={{ animationDelay: '0s' }}></div>
+        <div className="absolute top-12 left-8 w-1.5 h-1.5 bg-amber-300 rounded-full floating-particle hidden sm:block" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute bottom-8 right-12 w-2 h-2 bg-amber-500 rounded-full floating-particle hidden sm:block" style={{ animationDelay: '2s' }}></div>
 
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
+        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 md:gap-8 items-center lg:items-start">
           {/* Left Section: Photo and Info Cards */}
-          <div className="flex-shrink-0 flex flex-col items-center gap-4">
+          <div className="flex-shrink-0 flex flex-col items-center gap-3 sm:gap-4">
             {/* Photo with Rotating Ring */}
             <div className="relative photo-reveal">
               <div className="absolute inset-0 rotating-ring">
@@ -298,15 +298,15 @@ const PlayerCard: React.FC<PlayerCardProps> = memo(({
                 <img
                   src={player.photoUrl ? (player.photoUrl.startsWith('http') ? player.photoUrl : `${BACKEND_URL}${player.photoUrl}`) : '/default-avatar.png'}
                   alt={player.name}
-                  className="w-56 h-56 rounded-full object-cover border-4 border-slate-800"
+                  className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-56 lg:h-56 rounded-full object-cover border-4 border-slate-800"
                   style={{ boxShadow: `0 0 40px ${positionColors.light}` }}
                 />
               </div>
               
               {/* Position Badge Floating Below */}
-              <div className="badge-entrance mt-4">
+              <div className="badge-entrance mt-3 sm:mt-4">
                 <div
-                  className={`px-6 py-2 rounded-full bg-gradient-to-r ${positionColors.gradient} text-white font-bold text-sm shadow-lg`}
+                  className={`px-4 sm:px-6 py-1.5 sm:py-2 rounded-full bg-gradient-to-r ${positionColors.gradient} text-white font-bold text-xs sm:text-sm shadow-lg`}
                 >
                   {player.position}
                 </div>
@@ -314,20 +314,20 @@ const PlayerCard: React.FC<PlayerCardProps> = memo(({
             </div>
 
             {/* Info Cards Stacked */}
-            <div className="flex flex-col gap-3 w-full content-fade-1">
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-3 border border-amber-500/20">
-                <div className="text-xs text-amber-400/70 font-medium mb-1">Class</div>
-                <div className="text-white font-bold">{player.class}</div>
+            <div className="flex flex-col gap-2 sm:gap-3 w-full content-fade-1">
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-3 border border-amber-500/20">
+                <div className="text-[10px] sm:text-xs text-amber-400/70 font-medium mb-0.5 sm:mb-1">Class</div>
+                <div className="text-white font-bold text-sm sm:text-base">{player.class}</div>
               </div>
             </div>
           </div>
 
           {/* Right Section: Name, Amount Input, and Action Buttons */}
-          <div className="flex-1 flex flex-col justify-center gap-6">
+          <div className="flex-1 flex flex-col justify-center gap-4 sm:gap-6 w-full">
             {/* Player Name */}
-            <div className="content-fade-2">
+            <div className="content-fade-2 text-center lg:text-left">
               <h1 
-                className="text-5xl font-extrabold bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent mb-2"
+                className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent mb-1 sm:mb-2"
                 style={{ 
                   textShadow: '0 0 30px rgba(251, 191, 36, 0.5)',
                   fontFamily: 'Georgia, serif'
@@ -335,12 +335,12 @@ const PlayerCard: React.FC<PlayerCardProps> = memo(({
               >
                 {player.name}
               </h1>
-              <div className="h-1 w-32 bg-gradient-to-r from-amber-500 to-transparent rounded-full"></div>
+              <div className="h-0.5 sm:h-1 w-20 sm:w-32 bg-gradient-to-r from-amber-500 to-transparent rounded-full mx-auto lg:mx-0"></div>
             </div>
 
             {/* Amount Input */}
             <div className="content-fade-3">
-              <label className="block text-amber-400/90 font-semibold mb-3 text-lg">
+              <label className="block text-amber-400/90 font-semibold mb-2 sm:mb-3 text-sm sm:text-base lg:text-lg">
                 Bid Amount (₹)
               </label>
               <input
@@ -353,7 +353,7 @@ const PlayerCard: React.FC<PlayerCardProps> = memo(({
                     e.target.select(); // Select all text (the 0) so typing replaces it
                   }
                 }}
-                className="w-full px-6 py-4 text-2xl font-bold bg-slate-800/80 border-2 border-amber-500/40 rounded-xl text-white focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all"
+                className="w-full px-4 sm:px-6 py-3 sm:py-4 text-lg sm:text-xl md:text-2xl font-bold bg-slate-800/80 border-2 border-amber-500/40 rounded-lg sm:rounded-xl text-white focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all"
                 placeholder="Enter amount"
                 disabled={loading}
                 style={{ boxShadow: '0 4px 20px rgba(234, 179, 8, 0.15)' }}
@@ -362,12 +362,12 @@ const PlayerCard: React.FC<PlayerCardProps> = memo(({
 
             {/* Ultra Premium Action Buttons - Designer Edition */}
             {isAuctioneer ? (
-            <div className="flex gap-6 flex-col sm:flex-row">
+            <div className="flex gap-3 sm:gap-4 md:gap-6 flex-col sm:flex-row">
               {/* SOLD Button - Sophisticated Gold & Deep Green Luxury */}
               <button
                 onClick={handleSoldClick}
                 disabled={loading}
-                className="button-slide-1 premium-sold-button group flex-1 relative py-6 px-10 rounded-2xl font-bold text-xl overflow-hidden transition-all duration-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="button-slide-1 premium-sold-button group flex-1 relative py-4 sm:py-5 md:py-6 px-6 sm:px-8 md:px-10 rounded-xl sm:rounded-2xl font-bold text-base sm:text-lg md:text-xl overflow-hidden transition-all duration-700 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {/* Rich jewel-tone gradient base - Deep emerald to forest */}
                 <div className="absolute inset-0 bg-gradient-to-br from-[#0d9488] via-[#047857] to-[#065f46] opacity-95"></div>
@@ -414,7 +414,7 @@ const PlayerCard: React.FC<PlayerCardProps> = memo(({
               <button
                 onClick={handleUnsoldClick}
                 disabled={loading}
-                className="button-slide-2 premium-unsold-button group flex-1 relative py-6 px-10 rounded-2xl font-bold text-xl overflow-hidden transition-all duration-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="button-slide-2 premium-unsold-button group flex-1 relative py-4 sm:py-5 md:py-6 px-6 sm:px-8 md:px-10 rounded-xl sm:rounded-2xl font-bold text-base sm:text-lg md:text-xl overflow-hidden transition-all duration-700 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {/* Deep sophisticated burgundy to maroon gradient */}
                 <div className="absolute inset-0 bg-gradient-to-br from-[#be123c] via-[#9f1239] to-[#881337] opacity-95"></div>

@@ -2,18 +2,18 @@ import React from 'react';
 
 const AdminSettings: React.FC = () => {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white mb-1">System Settings</h1>
-        <p className="text-slate-400">Configure and manage platform settings</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-white mb-0.5 sm:mb-1">System Settings</h1>
+        <p className="text-slate-400 text-sm">Configure and manage platform settings</p>
       </div>
 
       {/* Coming Soon Card */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-12">
-        <div className="max-w-2xl mx-auto text-center space-y-6">
-          <div className="w-20 h-20 mx-auto bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-full flex items-center justify-center">
-            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 sm:p-12">
+        <div className="max-w-2xl mx-auto text-center space-y-4 sm:space-y-6">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -25,17 +25,17 @@ const AdminSettings: React.FC = () => {
           </div>
 
           <div>
-            <h2 className="text-3xl font-bold text-white mb-2">Settings Coming Soon</h2>
-            <p className="text-slate-400 text-lg mb-6">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Settings Coming Soon</h2>
+            <p className="text-slate-400 text-sm sm:text-lg mb-4 sm:mb-6">
               We're building a comprehensive settings panel to give you full control over your platform.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-            <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-left">
+            <div className="bg-slate-900/50 rounded-lg p-3 sm:p-4 border border-slate-700">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -45,16 +45,16 @@ const AdminSettings: React.FC = () => {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold mb-1">General Settings</h3>
-                  <p className="text-sm text-slate-500">Platform name, timezone, and preferences</p>
+                  <h3 className="text-white font-semibold mb-0.5 sm:mb-1 text-sm">General Settings</h3>
+                  <p className="text-xs sm:text-sm text-slate-500">Platform name, timezone, and preferences</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-green-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-slate-900/50 rounded-lg p-3 sm:p-4 border border-slate-700">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-green-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -64,16 +64,16 @@ const AdminSettings: React.FC = () => {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold mb-1">Email Configuration</h3>
-                  <p className="text-sm text-slate-500">SMTP settings and email templates</p>
+                  <h3 className="text-white font-semibold mb-0.5 sm:mb-1 text-sm">Email Configuration</h3>
+                  <p className="text-xs sm:text-sm text-slate-500">SMTP settings and email templates</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-slate-900/50 rounded-lg p-3 sm:p-4 border border-slate-700">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-purple-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -83,16 +83,16 @@ const AdminSettings: React.FC = () => {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold mb-1">Security Settings</h3>
-                  <p className="text-sm text-slate-500">Password policies and authentication</p>
+                  <h3 className="text-white font-semibold mb-0.5 sm:mb-1 text-sm">Security Settings</h3>
+                  <p className="text-xs sm:text-sm text-slate-500">Password policies and authentication</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-orange-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-slate-900/50 rounded-lg p-3 sm:p-4 border border-slate-700">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-orange-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -102,16 +102,16 @@ const AdminSettings: React.FC = () => {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold mb-1">Backup & Restore</h3>
-                  <p className="text-sm text-slate-500">Database backup and recovery options</p>
+                  <h3 className="text-white font-semibold mb-0.5 sm:mb-1 text-sm">Backup & Restore</h3>
+                  <p className="text-xs sm:text-sm text-slate-500">Database backup and recovery options</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-red-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-slate-900/50 rounded-lg p-3 sm:p-4 border border-slate-700">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-red-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -121,16 +121,16 @@ const AdminSettings: React.FC = () => {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold mb-1">Appearance</h3>
-                  <p className="text-sm text-slate-500">Theme customization and branding</p>
+                  <h3 className="text-white font-semibold mb-0.5 sm:mb-1 text-sm">Appearance</h3>
+                  <p className="text-xs sm:text-sm text-slate-500">Theme customization and branding</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-cyan-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-slate-900/50 rounded-lg p-3 sm:p-4 border border-slate-700">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-cyan-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -140,15 +140,15 @@ const AdminSettings: React.FC = () => {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold mb-1">Notifications</h3>
-                  <p className="text-sm text-slate-500">Configure system notifications</p>
+                  <h3 className="text-white font-semibold mb-0.5 sm:mb-1 text-sm">Notifications</h3>
+                  <p className="text-xs sm:text-sm text-slate-500">Configure system notifications</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="pt-6">
-            <p className="text-sm text-slate-500">
+          <div className="pt-4 sm:pt-6">
+            <p className="text-xs sm:text-sm text-slate-500">
               This feature is currently in development. Check back soon!
             </p>
           </div>

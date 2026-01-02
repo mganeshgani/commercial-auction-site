@@ -73,45 +73,45 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
       ></div>
 
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 pointer-events-none">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-3 pointer-events-none">
         <div
-          className="relative w-full max-w-6xl max-h-[92vh] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-700/50 overflow-hidden pointer-events-auto animate-slideUp"
+          className="relative w-full max-w-6xl max-h-[94vh] sm:max-h-[92vh] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl sm:rounded-2xl shadow-2xl border border-gray-700/50 overflow-hidden pointer-events-auto animate-slideUp"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="relative bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20 border-b border-gray-700/50 p-4">
+          <div className="relative bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20 border-b border-gray-700/50 p-3 sm:p-4">
             {/* Close Button */}
             <button
               onClick={handleClose}
-              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-gray-800/80 hover:bg-gray-700 flex items-center justify-center transition-all duration-300 hover:scale-110 hover:rotate-90 group"
+              className="absolute top-2 sm:top-3 right-2 sm:right-3 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-800/80 hover:bg-gray-700 flex items-center justify-center transition-all duration-300 hover:scale-110 hover:rotate-90 group"
             >
-              <svg className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
 
             {/* Title */}
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 mb-2">
-                <span className="text-3xl">🏆</span>
-                <h2 className="text-2xl font-black text-white tracking-tight">Select Team</h2>
+            <div className="text-center pr-8 sm:pr-0">
+              <div className="inline-flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                <span className="text-2xl sm:text-3xl">🏆</span>
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">Select Team</h2>
               </div>
-              <p className="text-gray-400 text-sm">
-                Choose the team for this player • Sold Amount: <span className="text-green-400 font-bold">₹{soldAmount.toLocaleString()}</span>
+              <p className="text-gray-400 text-xs sm:text-sm">
+                Choose the team for this player • Sold: <span className="text-green-400 font-bold">₹{soldAmount.toLocaleString()}</span>
               </p>
             </div>
 
             {/* Search Bar */}
-            <div className="mt-3">
+            <div className="mt-2 sm:mt-3">
               <div className="relative max-w-md mx-auto">
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search teams..."
-                  className="w-full px-4 py-2 pl-10 bg-gray-800/80 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300"
+                  className="w-full px-3 sm:px-4 py-2 pl-8 sm:pl-10 bg-gray-800/80 border border-gray-700 rounded-lg text-white text-xs sm:text-sm placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all duration-300"
                 />
-                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="absolute left-2.5 sm:left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
@@ -119,14 +119,14 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
           </div>
 
           {/* Teams Grid */}
-          <div className="p-4 overflow-y-auto max-h-[calc(92vh-180px)] custom-scrollbar">
+          <div className="p-2 sm:p-4 overflow-y-auto max-h-[calc(94vh-160px)] sm:max-h-[calc(92vh-180px)] custom-scrollbar">
             {filteredTeams.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-4xl mb-3">🔍</div>
-                <p className="text-gray-400 text-sm">No teams found</p>
+              <div className="text-center py-6 sm:py-8">
+                <div className="text-3xl sm:text-4xl mb-2 sm:mb-3">🔍</div>
+                <p className="text-gray-400 text-xs sm:text-sm">No teams found</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                 {filteredTeams.map((team) => {
                   const eligible = isEligible(team);
                   const affordable = canAfford(team);
@@ -139,7 +139,7 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
                       onClick={() => handleTeamClick(team._id, team)}
                       disabled={!eligible}
                       className={`
-                        relative group text-left p-3 rounded-xl border transition-all duration-300
+                        relative group text-left p-2.5 sm:p-3 rounded-lg sm:rounded-xl border transition-all duration-300
                         ${selected
                           ? 'border-green-500 bg-green-500/10 shadow-md shadow-green-500/20 scale-[1.02]'
                           : eligible
@@ -151,8 +151,8 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
                     >
                       {/* Selection Indicator */}
                       {selected && (
-                        <div className="absolute -top-2 -right-2 w-7 h-7 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center shadow-md animate-bounce">
-                          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div className="absolute -top-1.5 sm:-top-2 -right-1.5 sm:-right-2 w-5 h-5 sm:w-7 sm:h-7 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center shadow-md animate-bounce">
+                          <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                           </svg>
                         </div>
@@ -160,10 +160,10 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
 
                       {/* Ineligible Overlay */}
                       {!eligible && (
-                        <div className="absolute inset-0 bg-gray-900/70 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                        <div className="absolute inset-0 bg-gray-900/70 rounded-lg sm:rounded-xl flex items-center justify-center backdrop-blur-sm">
                           <div className="text-center px-2">
-                            <div className="text-2xl mb-1">🚫</div>
-                            <p className="text-red-400 font-bold text-xs">
+                            <div className="text-xl sm:text-2xl mb-1">🚫</div>
+                            <p className="text-red-400 font-bold text-[10px] sm:text-xs">
                               {!affordable && 'Insufficient Budget'}
                               {!slots && affordable && 'No Slots Available'}
                             </p>
@@ -172,26 +172,26 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
                       )}
 
                       {/* Team Header */}
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-base font-black text-white flex items-center gap-1">
-                          <span className="text-lg">🏅</span>
+                      <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                        <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-1">
+                          <span className="text-base sm:text-lg">🏅</span>
                           <span className="truncate">{team.name}</span>
                         </h3>
                         {eligible && (
-                          <div className="px-2 py-0.5 bg-green-500/20 border border-green-500/30 rounded-full flex-shrink-0">
-                            <span className="text-green-400 text-[10px] font-bold">✓</span>
+                          <div className="px-1.5 sm:px-2 py-0.5 bg-green-500/20 border border-green-500/30 rounded-full flex-shrink-0">
+                            <span className="text-green-400 text-[8px] sm:text-[10px] font-bold">✓</span>
                           </div>
                         )}
                       </div>
 
                       {/* Budget Info */}
-                      <div className="space-y-2 mb-2">
+                      <div className="space-y-1.5 sm:space-y-2 mb-1.5 sm:mb-2">
                         <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-gray-400 text-xs font-semibold flex items-center gap-1">
-                              <span className="text-sm">💰</span> Budget
+                          <div className="flex items-center justify-between mb-0.5 sm:mb-1">
+                            <span className="text-gray-400 text-[10px] sm:text-xs font-semibold flex items-center gap-0.5 sm:gap-1">
+                              <span className="text-xs sm:text-sm">💰</span> Budget
                             </span>
-                            <span className={`text-xs font-bold ${affordable ? 'text-green-400' : 'text-red-400'}`}>
+                            <span className={`text-[10px] sm:text-xs font-bold ${affordable ? 'text-green-400' : 'text-red-400'}`}>
                               ₹{(team.remainingBudget || 0).toLocaleString()}
                             </span>
                           </div>
@@ -211,11 +211,11 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
 
                         {/* Slots Info */}
                         <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-gray-400 text-xs font-semibold flex items-center gap-1">
-                              <span className="text-sm">👥</span> Slots
+                          <div className="flex items-center justify-between mb-0.5 sm:mb-1">
+                            <span className="text-gray-400 text-[10px] sm:text-xs font-semibold flex items-center gap-0.5 sm:gap-1">
+                              <span className="text-xs sm:text-sm">👥</span> Slots
                             </span>
-                            <span className={`text-xs font-bold ${slots ? 'text-blue-400' : 'text-red-400'}`}>
+                            <span className={`text-[10px] sm:text-xs font-bold ${slots ? 'text-blue-400' : 'text-red-400'}`}>
                               {team.filledSlots} / {team.totalSlots}
                             </span>
                           </div>
@@ -236,8 +236,8 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
 
                       {/* After Purchase Info */}
                       {eligible && (
-                        <div className="pt-2 border-t border-gray-700/50">
-                          <div className="flex items-center justify-between text-xs">
+                        <div className="pt-1.5 sm:pt-2 border-t border-gray-700/50">
+                          <div className="flex items-center justify-between text-[10px] sm:text-xs">
                             <span className="text-gray-500">After:</span>
                             <span className="text-yellow-400 font-bold">
                               ₹{((team.remainingBudget || 0) - soldAmount).toLocaleString()}
@@ -253,11 +253,11 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="border-t border-gray-700/50 p-3 bg-gray-900/50">
-            <div className="flex items-center justify-between gap-3">
+          <div className="border-t border-gray-700/50 p-2 sm:p-3 bg-gray-900/50">
+            <div className="flex items-center justify-between gap-2 sm:gap-3">
               <button
                 onClick={handleClose}
-                className="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-white text-sm font-bold transition-all duration-300 hover:scale-105"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-white text-xs sm:text-sm font-bold transition-all duration-300 hover:scale-105"
               >
                 Cancel
               </button>
@@ -265,14 +265,14 @@ const TeamSelectionModal: React.FC<TeamSelectionModalProps> = ({
                 onClick={handleConfirm}
                 disabled={!selectedTeamId}
                 className={`
-                  px-6 py-2 rounded-lg font-black text-sm transition-all duration-300
+                  px-4 sm:px-6 py-1.5 sm:py-2 rounded-lg font-black text-xs sm:text-sm transition-all duration-300
                   ${selectedTeamId
                     ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-md hover:scale-105 hover:shadow-green-500/30'
                     : 'bg-gray-800 text-gray-500 cursor-not-allowed'
                   }
                 `}
               >
-                {selectedTeamId ? '✓ Confirm Selection' : 'Select a Team'}
+                {selectedTeamId ? '✓ Confirm' : 'Select Team'}
               </button>
             </div>
           </div>

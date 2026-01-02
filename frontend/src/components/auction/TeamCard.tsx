@@ -53,24 +53,22 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
           background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(10, 10, 10, 0.6) 50%, rgba(0, 0, 0, 0.7) 100%)',
           backdropFilter: 'blur(20px)',
           borderRadius: '10px',
-          padding: '8px',
+          padding: '6px',
           border: '1px solid rgba(212, 175, 55, 0.25)',
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5), 0 0 30px rgba(212, 175, 55, 0.1)',
           transition: 'all 300ms'
-        }} className="hover:border-[rgba(212,175,55,0.4)]">
+        }} className="hover:border-[rgba(212,175,55,0.4)] sm:p-2">
           {/* Team Name with Gold Icon */}
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <div style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '7px',
+          <div className="flex items-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
+            <div className="w-6 h-6 sm:w-7 sm:h-7 flex-shrink-0" style={{
+              borderRadius: '6px',
               background: 'linear-gradient(135deg, #B08B4F, #C99D5F)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontFamily: "'Montserrat', sans-serif",
               fontWeight: 800,
-              fontSize: '0.75rem',
+              fontSize: '0.65rem',
               color: '#0E0E12',
               boxShadow: '0 0 20px rgba(176, 139, 79, 0.4)',
               overflow: 'hidden'
@@ -81,10 +79,9 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
                 team.name.charAt(0).toUpperCase()
               )}
             </div>
-            <h3 style={{
+            <h3 className="text-xs sm:text-[0.8125rem]" style={{
               fontFamily: "'Montserrat', sans-serif",
               fontWeight: 700,
-              fontSize: '0.8125rem',
               color: '#F5F5F5',
               flex: 1,
               overflow: 'hidden',
@@ -96,12 +93,11 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
           </div>
 
           {/* Stats */}
-          <div className="space-y-1.5">
+          <div className="space-y-1 sm:space-y-1.5">
             {/* Budget */}
             <div>
               <div className="flex justify-between items-center mb-0.5">
-                <span style={{
-                  fontSize: '10px',
+                <span className="text-[9px] sm:text-[10px]" style={{
                   fontFamily: "'Montserrat', sans-serif",
                   fontWeight: 600,
                   color: '#A0A0A5',
@@ -110,8 +106,7 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
                 }}>
                   Budget
                 </span>
-                <span style={{
-                  fontSize: '10px',
+                <span className="text-[9px] sm:text-[10px]" style={{
                   fontFamily: "'Montserrat', sans-serif",
                   fontWeight: 700,
                   color: '#B08B4F'
@@ -120,12 +115,12 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
                 </span>
               </div>
               <div style={{
-                height: '5px',
+                height: '4px',
                 background: 'rgba(26, 26, 31, 0.6)',
                 borderRadius: '9999px',
                 overflow: 'hidden',
                 border: '1px solid rgba(176, 139, 79, 0.25)'
-              }}>
+              }} className="sm:h-[5px]">
                 <div 
                   style={{
                     height: '100%',
@@ -142,8 +137,7 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
             {/* Slots */}
             <div>
               <div className="flex justify-between items-center mb-0.5">
-                <span style={{
-                  fontSize: '10px',
+                <span className="text-[9px] sm:text-[10px]" style={{
                   fontFamily: "'Montserrat', sans-serif",
                   fontWeight: 600,
                   color: '#A0A0A5',
@@ -152,8 +146,7 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
                 }}>
                   Players
                 </span>
-                <span style={{
-                  fontSize: '10px',
+                <span className="text-[9px] sm:text-[10px]" style={{
                   fontFamily: "'Montserrat', sans-serif",
                   fontWeight: 700,
                   color: '#B08B4F'
@@ -162,12 +155,12 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
                 </span>
               </div>
               <div style={{
-                height: '5px',
+                height: '4px',
                 background: 'rgba(26, 26, 31, 0.6)',
                 borderRadius: '9999px',
                 overflow: 'hidden',
                 border: '1px solid rgba(176, 139, 79, 0.25)'
-              }}>
+              }} className="sm:h-[5px]">
                 <div 
                   style={{
                     height: '100%',
@@ -216,11 +209,11 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
         position: 'relative',
         background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(26, 26, 26, 0.9), rgba(0, 0, 0, 0.95))',
         backdropFilter: 'blur(25px)',
-        borderRadius: '20px',
+        borderRadius: '16px',
         overflow: 'hidden',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6), 0 0 40px rgba(212, 175, 55, 0.15)',
         border: '1px solid rgba(212, 175, 55, 0.25)'
-      }}>
+      }} className="sm:rounded-[20px]">
         {/* Top Gold Accent */}
         <div style={{
           height: '3px',
@@ -228,45 +221,40 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
           boxShadow: '0 0 10px rgba(255, 215, 0, 0.3)'
         }}></div>
         
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* Team Header */}
-          <div className="flex items-center gap-4 mb-6">
-            <div style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '16px',
+          <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0 group-hover:scale-110" style={{
+              borderRadius: '12px',
               background: 'linear-gradient(135deg, #FFD700, #D4AF37, #FFD700)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontFamily: "'Montserrat', sans-serif",
               fontWeight: 900,
-              fontSize: '1.5rem',
+              fontSize: '1.25rem',
               color: '#000000',
               boxShadow: '0 0 30px rgba(212, 175, 55, 0.5), inset 0 2px 10px rgba(255, 255, 255, 0.2)',
-              transform: 'scale(1)',
               transition: 'transform 300ms',
               overflow: 'hidden'
-            }} className="group-hover:scale-110">
+            }}>
               {team.logoUrl ? (
                 <img src={team.logoUrl} alt={team.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                team.name.charAt(0).toUpperCase()
+                <span className="text-xl sm:text-2xl">{team.name.charAt(0).toUpperCase()}</span>
               )}
             </div>
-            <div className="flex-1">
-              <h3 style={{
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg sm:text-2xl truncate" style={{
                 fontFamily: "'Playfair Display', serif",
                 fontWeight: 700,
-                fontSize: '1.5rem',
                 color: '#FFFFFF',
                 marginBottom: '4px',
                 textShadow: '0 2px 12px rgba(212, 175, 55, 0.3)',
                 letterSpacing: '0.02em'
               }}>{team.name}</h3>
-              <p style={{
+              <p className="text-xs sm:text-sm" style={{
                 fontFamily: "'Montserrat', sans-serif",
-                fontSize: '0.875rem',
                 fontWeight: 600,
                 color: '#9ca3af'
               }}>Team Overview</p>
@@ -274,18 +262,17 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
           </div>
 
           {/* Stats Grid */}
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {/* Total Budget */}
             <div style={{
               background: 'linear-gradient(135deg, rgba(26, 26, 26, 0.6), rgba(0, 0, 0, 0.4))',
-              borderRadius: '12px',
-              padding: '16px',
+              borderRadius: '10px',
+              padding: '12px',
               border: '1px solid rgba(212, 175, 55, 0.2)'
-            }}>
-              <div className="flex justify-between items-center mb-2">
-                <span style={{
+            }} className="sm:rounded-xl sm:p-4">
+              <div className="flex justify-between items-center mb-1.5 sm:mb-2">
+                <span className="text-xs sm:text-sm" style={{
                   fontFamily: "'Montserrat', sans-serif",
-                  fontSize: '0.875rem',
                   fontWeight: 600,
                   color: '#9ca3af',
                   textTransform: 'uppercase',
@@ -293,9 +280,8 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
                 }}>
                   Total Budget
                 </span>
-                <span style={{
+                <span className="text-base sm:text-xl" style={{
                   fontFamily: "'Montserrat', sans-serif",
-                  fontSize: '1.25rem',
                   fontWeight: 800,
                   color: '#FFFFFF'
                 }}>
@@ -307,14 +293,13 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
             {/* Remaining Budget */}
             <div style={{
               background: 'linear-gradient(135deg, rgba(26, 26, 26, 0.6), rgba(0, 0, 0, 0.4))',
-              borderRadius: '12px',
-              padding: '16px',
+              borderRadius: '10px',
+              padding: '12px',
               border: '1px solid rgba(212, 175, 55, 0.2)'
-            }}>
-              <div className="flex justify-between items-center mb-2">
-                <span style={{
+            }} className="sm:rounded-xl sm:p-4">
+              <div className="flex justify-between items-center mb-1.5 sm:mb-2">
+                <span className="text-xs sm:text-sm" style={{
                   fontFamily: "'Montserrat', sans-serif",
-                  fontSize: '0.875rem',
                   fontWeight: 600,
                   color: '#9ca3af',
                   textTransform: 'uppercase',
@@ -322,9 +307,8 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
                 }}>
                   Remaining
                 </span>
-                <span style={{
+                <span className="text-base sm:text-xl" style={{
                   fontFamily: "'Montserrat', sans-serif",
-                  fontSize: '1.25rem',
                   fontWeight: 800,
                   color: '#FFD700',
                   textShadow: '0 0 10px rgba(255, 215, 0, 0.3)'
@@ -333,13 +317,13 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
                 </span>
               </div>
               <div style={{
-                height: '12px',
+                height: '10px',
                 background: 'rgba(0, 0, 0, 0.5)',
                 borderRadius: '9999px',
                 overflow: 'hidden',
                 marginTop: '8px',
                 border: '1px solid rgba(212, 175, 55, 0.2)'
-              }}>
+              }} className="sm:h-3">
                 <div 
                   className={`h-full bg-gradient-to-r ${budgetColors.tw} rounded-full transition-all duration-500`}
                   style={{ 
@@ -349,9 +333,8 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
                 ></div>
               </div>
               <div className="flex justify-between mt-1">
-                <span style={{
+                <span className="text-[10px] sm:text-xs" style={{
                   fontFamily: "'Montserrat', sans-serif",
-                  fontSize: '0.75rem',
                   fontWeight: 600,
                   color: '#9ca3af'
                 }}>{budgetPercentage.toFixed(0)}% left</span>
@@ -361,14 +344,13 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
             {/* Players */}
             <div style={{
               background: 'linear-gradient(135deg, rgba(26, 26, 26, 0.6), rgba(0, 0, 0, 0.4))',
-              borderRadius: '12px',
-              padding: '16px',
+              borderRadius: '10px',
+              padding: '12px',
               border: '1px solid rgba(212, 175, 55, 0.2)'
-            }}>
-              <div className="flex justify-between items-center mb-2">
-                <span style={{
+            }} className="sm:rounded-xl sm:p-4">
+              <div className="flex justify-between items-center mb-1.5 sm:mb-2">
+                <span className="text-xs sm:text-sm" style={{
                   fontFamily: "'Montserrat', sans-serif",
-                  fontSize: '0.875rem',
                   fontWeight: 600,
                   color: '#9ca3af',
                   textTransform: 'uppercase',
@@ -376,9 +358,8 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
                 }}>
                   Squad
                 </span>
-                <span style={{
+                <span className="text-base sm:text-xl" style={{
                   fontFamily: "'Montserrat', sans-serif",
-                  fontSize: '1.25rem',
                   fontWeight: 800,
                   color: '#FFFFFF'
                 }}>
@@ -386,13 +367,13 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
                 </span>
               </div>
               <div style={{
-                height: '12px',
+                height: '10px',
                 background: 'rgba(0, 0, 0, 0.5)',
                 borderRadius: '9999px',
                 overflow: 'hidden',
                 marginTop: '8px',
                 border: '1px solid rgba(212, 175, 55, 0.2)'
-              }}>
+              }} className="sm:h-3">
                 <div 
                   className={`h-full bg-gradient-to-r ${slotsColors.tw} rounded-full transition-all duration-500`}
                   style={{ 
@@ -402,15 +383,13 @@ const TeamCard: React.FC<TeamCardProps> = memo(({ team, compact = false }) => {
                 ></div>
               </div>
               <div className="flex justify-between mt-1">
-                <span style={{
+                <span className="text-[10px] sm:text-xs" style={{
                   fontFamily: "'Montserrat', sans-serif",
-                  fontSize: '0.75rem',
                   fontWeight: 600,
                   color: '#9ca3af'
                 }}>{slotsPercentage.toFixed(0)}% filled</span>
-                <span style={{
+                <span className="text-[10px] sm:text-xs" style={{
                   fontFamily: "'Montserrat', sans-serif",
-                  fontSize: '0.75rem',
                   fontWeight: 600,
                   color: '#9ca3af'
                 }}>{team.totalSlots - (team.filledSlots || 0)} slots left</span>

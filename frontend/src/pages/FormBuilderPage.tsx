@@ -200,28 +200,28 @@ const FormBuilderPage: React.FC = () => {
       
       {/* Header - Premium Rose-Gold & Black */}
       <div className="flex-shrink-0 bg-gradient-to-r from-rose-950 via-black to-rose-950 border-b border-rose-500/20 shadow-2xl shadow-rose-900/30">
-        <div className="max-w-7xl mx-auto px-8 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-1 h-8 bg-gradient-to-b from-rose-400 via-pink-500 to-rose-600 rounded-full shadow-lg shadow-rose-500/50"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-1 h-6 sm:h-8 bg-gradient-to-b from-rose-400 via-pink-500 to-rose-600 rounded-full shadow-lg shadow-rose-500/50"></div>
               <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-rose-300 via-pink-400 to-rose-400 bg-clip-text text-transparent tracking-wide">REGISTRATION DESIGNER</h1>
-                <p className="text-xs text-rose-400/50 tracking-wider mt-0.5 font-light">Craft Your Elite Form</p>
+                <h1 className="text-base sm:text-lg lg:text-xl font-bold bg-gradient-to-r from-rose-300 via-pink-400 to-rose-400 bg-clip-text text-transparent tracking-wide">REGISTRATION DESIGNER</h1>
+                <p className="text-[10px] sm:text-xs text-rose-400/50 tracking-wider mt-0.5 font-light hidden sm:block">Craft Your Elite Form</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
               <button
                 onClick={() => navigate(-1)}
-                className="px-5 py-2 bg-black/60 border border-rose-900/40 text-rose-200/70 hover:text-rose-300 hover:border-rose-600/50 hover:bg-rose-950/30 rounded-lg transition-all duration-300 font-medium text-sm backdrop-blur-sm"
+                className="flex-1 sm:flex-none px-3 sm:px-5 py-1.5 sm:py-2 bg-black/60 border border-rose-900/40 text-rose-200/70 hover:text-rose-300 hover:border-rose-600/50 hover:bg-rose-950/30 rounded-lg transition-all duration-300 font-medium text-xs sm:text-sm backdrop-blur-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-6 py-2 bg-gradient-to-r from-rose-600 via-pink-500 to-rose-600 hover:from-rose-500 hover:via-pink-400 hover:to-rose-500 text-white font-bold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-rose-900/60 hover:shadow-xl hover:shadow-rose-800/70 border border-rose-400/40"
+                className="flex-1 sm:flex-none px-4 sm:px-6 py-1.5 sm:py-2 bg-gradient-to-r from-rose-600 via-pink-500 to-rose-600 hover:from-rose-500 hover:via-pink-400 hover:to-rose-500 text-white font-bold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-rose-900/60 hover:shadow-xl hover:shadow-rose-800/70 border border-rose-400/40 text-xs sm:text-sm"
               >
-                {saving ? '⏳ Saving...' : '💾 Save Form'}
+                {saving ? '⏳ Saving...' : '💾 Save'}
               </button>
             </div>
           </div>
@@ -230,36 +230,36 @@ const FormBuilderPage: React.FC = () => {
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto scrollbar-custom">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="grid grid-cols-12 gap-6">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
             
             {/* Left Sidebar */}
-            <div className="col-span-3 space-y-4">
+            <div className="lg:col-span-3 space-y-3 sm:space-y-4 order-2 lg:order-1">
               
               {/* Form Settings */}
-              <div className="bg-gradient-to-br from-slate-950 to-black rounded-xl border border-amber-800/30 p-5 shadow-2xl shadow-amber-900/10">
-                <h2 className="text-lg font-bold bg-gradient-to-r from-amber-300 via-orange-400 to-amber-400 bg-clip-text text-transparent mb-4 flex items-center gap-2">
-                  <span className="text-xl">⚙️</span>
+              <div className="bg-gradient-to-br from-slate-950 to-black rounded-xl border border-amber-800/30 p-3 sm:p-5 shadow-2xl shadow-amber-900/10">
+                <h2 className="text-base sm:text-lg font-bold bg-gradient-to-r from-amber-300 via-orange-400 to-amber-400 bg-clip-text text-transparent mb-3 sm:mb-4 flex items-center gap-2">
+                  <span className="text-lg sm:text-xl">⚙️</span>
                   Settings
                 </h2>
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">Form Title</label>
+                    <label className="block text-xs sm:text-sm font-medium text-slate-400 mb-1.5 sm:mb-2">Form Title</label>
                     <input
                       type="text"
                       value={formTitle}
                       onChange={(e) => setFormTitle(e.target.value)}
-                      className="w-full px-3 py-2 bg-black/50 border border-amber-800/40 rounded-lg text-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-amber-600/50 transition-all placeholder:text-slate-600"
+                      className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-black/50 border border-amber-800/40 rounded-lg text-amber-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-amber-600/50 transition-all placeholder:text-slate-600"
                       placeholder="e.g., Player Registration"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">Description</label>
+                    <label className="block text-xs sm:text-sm font-medium text-slate-400 mb-1.5 sm:mb-2">Description</label>
                     <textarea
                       value={formDescription}
                       onChange={(e) => setFormDescription(e.target.value)}
                       rows={3}
-                      className="w-full px-3 py-2 bg-black/50 border border-amber-800/40 rounded-lg text-amber-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-amber-600/50 resize-none transition-all placeholder:text-slate-600"
+                      className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-black/50 border border-amber-800/40 rounded-lg text-amber-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-amber-600/50 resize-none transition-all placeholder:text-slate-600"
                       placeholder="Brief description..."
                     />
                   </div>
@@ -267,23 +267,23 @@ const FormBuilderPage: React.FC = () => {
               </div>
 
               {/* Templates */}
-              <div className="bg-gradient-to-br from-slate-950 to-black rounded-xl border border-amber-800/30 p-5 shadow-2xl shadow-amber-900/10">
-                <h2 className="text-lg font-bold bg-gradient-to-r from-amber-300 via-orange-400 to-amber-400 bg-clip-text text-transparent mb-4 flex items-center gap-2">
-                  <span className="text-xl">📋</span>
+              <div className="bg-gradient-to-br from-slate-950 to-black rounded-xl border border-amber-800/30 p-3 sm:p-5 shadow-2xl shadow-amber-900/10">
+                <h2 className="text-base sm:text-lg font-bold bg-gradient-to-r from-amber-300 via-orange-400 to-amber-400 bg-clip-text text-transparent mb-3 sm:mb-4 flex items-center gap-2">
+                  <span className="text-lg sm:text-xl">📋</span>
                   Templates
                 </h2>
-                <div className="space-y-2">
+                <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
                   {templates.map((template) => (
                     <button
                       key={template.id}
                       onClick={() => loadTemplate(template.id)}
-                      className="w-full text-left px-3 py-3 bg-black/50 hover:bg-amber-950/30 border border-amber-900/30 hover:border-amber-600/60 rounded-lg transition-all duration-300 group backdrop-blur-sm"
+                      className="w-full text-left px-2 sm:px-3 py-2 sm:py-3 bg-black/50 hover:bg-amber-950/30 border border-amber-900/30 hover:border-amber-600/60 rounded-lg transition-all duration-300 group backdrop-blur-sm"
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{template.icon}</span>
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <span className="text-xl sm:text-2xl">{template.icon}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-amber-200 text-sm group-hover:text-amber-300 transition-colors">{template.name}</p>
-                          <p className="text-xs text-slate-500 truncate">{template.description}</p>
+                          <p className="font-semibold text-amber-200 text-xs sm:text-sm group-hover:text-amber-300 transition-colors truncate">{template.name}</p>
+                          <p className="text-[10px] sm:text-xs text-slate-500 truncate hidden sm:block">{template.description}</p>
                         </div>
                       </div>
                     </button>
@@ -292,36 +292,36 @@ const FormBuilderPage: React.FC = () => {
               </div>
 
               {/* Quick Tip */}
-              <div className="bg-gradient-to-br from-orange-500/10 via-amber-500/10 to-orange-600/10 border border-orange-500/40 rounded-xl p-4 shadow-lg shadow-orange-900/20">
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">💡</span>
+              <div className="bg-gradient-to-br from-orange-500/10 via-amber-500/10 to-orange-600/10 border border-orange-500/40 rounded-xl p-3 sm:p-4 shadow-lg shadow-orange-900/20 hidden sm:block">
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <span className="text-xl sm:text-2xl">💡</span>
                   <div>
-                    <h3 className="text-sm font-bold bg-gradient-to-r from-orange-300 to-amber-400 bg-clip-text text-transparent mb-1">Pro Tip</h3>
-                    <p className="text-xs text-orange-100/70">Click "Add Field" to craft your form. Protected fields maintain form integrity.</p>
+                    <h3 className="text-xs sm:text-sm font-bold bg-gradient-to-r from-orange-300 to-amber-400 bg-clip-text text-transparent mb-1">Pro Tip</h3>
+                    <p className="text-[10px] sm:text-xs text-orange-100/70">Click "Add Field" to craft your form. Protected fields maintain form integrity.</p>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Main Content Area */}
-            <div className="col-span-9 space-y-4">
+            <div className="lg:col-span-9 space-y-3 sm:space-y-4 order-1 lg:order-2">
               
               {/* Header */}
-              <div className="bg-gradient-to-br from-slate-950 to-black rounded-xl border border-yellow-600/40 p-5 shadow-2xl shadow-yellow-900/20">
-                <div className="flex items-center justify-between">
+              <div className="bg-gradient-to-br from-slate-950 to-black rounded-xl border border-yellow-600/40 p-3 sm:p-5 shadow-2xl shadow-yellow-900/20">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                   <div>
-                    <h2 className="text-xl font-bold bg-gradient-to-r from-yellow-200 via-amber-300 to-yellow-400 bg-clip-text text-transparent flex items-center gap-2">
-                      <span className="text-2xl">🎨</span>
+                    <h2 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-yellow-200 via-amber-300 to-yellow-400 bg-clip-text text-transparent flex items-center gap-2">
+                      <span className="text-xl sm:text-2xl">🎨</span>
                       Form Fields
-                      <span className="ml-2 px-2.5 py-0.5 bg-gradient-to-r from-yellow-500/30 to-amber-400/30 border border-yellow-500/50 text-yellow-300 rounded-lg text-sm font-bold shadow-lg shadow-yellow-900/30">
+                      <span className="ml-1 sm:ml-2 px-2 sm:px-2.5 py-0.5 bg-gradient-to-r from-yellow-500/30 to-amber-400/30 border border-yellow-500/50 text-yellow-300 rounded-lg text-xs sm:text-sm font-bold shadow-lg shadow-yellow-900/30">
                         {fields.length}
                       </span>
                     </h2>
-                    <p className="text-sm text-yellow-200/60 mt-1">Craft your elite registration</p>
+                    <p className="text-xs sm:text-sm text-yellow-200/60 mt-0.5 sm:mt-1 hidden sm:block">Craft your elite registration</p>
                   </div>
                   <button
                     onClick={() => setShowAddField(!showAddField)}
-                    className="px-6 py-3 bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-500 hover:from-yellow-400 hover:via-amber-300 hover:to-yellow-400 text-black font-extrabold rounded-lg shadow-lg shadow-yellow-900/60 hover:shadow-xl hover:shadow-yellow-800/70 transition-all duration-300 transform hover:scale-105 border border-yellow-400/50"
+                    className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-500 hover:from-yellow-400 hover:via-amber-300 hover:to-yellow-400 text-black font-extrabold rounded-lg shadow-lg shadow-yellow-900/60 hover:shadow-xl hover:shadow-yellow-800/70 transition-all duration-300 transform hover:scale-105 border border-yellow-400/50 text-sm"
                   >
                     ✨ Add Field
                   </button>
@@ -329,17 +329,17 @@ const FormBuilderPage: React.FC = () => {
 
                 {/* Field Type Selector */}
                 {showAddField && (
-                  <div className="mt-4 pt-4 border-t border-yellow-700/40">
-                    <p className="text-sm font-medium text-yellow-300/80 mb-3">Select field type:</p>
-                    <div className="grid grid-cols-4 gap-3">
+                  <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-yellow-700/40">
+                    <p className="text-xs sm:text-sm font-medium text-yellow-300/80 mb-2 sm:mb-3">Select field type:</p>
+                    <div className="grid grid-cols-4 sm:grid-cols-4 gap-2 sm:gap-3">
                       {FIELD_TYPES.map((type) => (
                         <button
                           key={type.value}
                           onClick={() => addField(type.value)}
-                          className="flex flex-col items-center gap-2 p-4 bg-black/50 hover:bg-yellow-900/20 border border-yellow-900/40 hover:border-yellow-500/70 rounded-lg transition-all duration-300 group backdrop-blur-sm shadow-lg hover:shadow-yellow-900/40"
+                          className="flex flex-col items-center gap-1 sm:gap-2 p-2 sm:p-4 bg-black/50 hover:bg-yellow-900/20 border border-yellow-900/40 hover:border-yellow-500/70 rounded-lg transition-all duration-300 group backdrop-blur-sm shadow-lg hover:shadow-yellow-900/40"
                         >
-                          <span className="text-3xl group-hover:scale-110 transition-transform duration-300">{type.icon}</span>
-                          <span className="text-xs font-semibold text-yellow-100/70 group-hover:text-yellow-300 transition-colors">{type.label}</span>
+                          <span className="text-xl sm:text-3xl group-hover:scale-110 transition-transform duration-300">{type.icon}</span>
+                          <span className="text-[10px] sm:text-xs font-semibold text-yellow-100/70 group-hover:text-yellow-300 transition-colors">{type.label}</span>
                         </button>
                       ))}
                     </div>
@@ -348,15 +348,15 @@ const FormBuilderPage: React.FC = () => {
               </div>
 
               {/* Fields List */}
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {fields.length === 0 ? (
-                  <div className="bg-gradient-to-br from-slate-950 to-black border-2 border-dashed border-yellow-700/50 rounded-xl p-20 text-center shadow-2xl shadow-yellow-900/20">
-                    <div className="text-6xl mb-4">📝</div>
-                    <h3 className="text-xl font-bold bg-gradient-to-r from-yellow-200 to-amber-400 bg-clip-text text-transparent mb-2">No Fields Yet</h3>
-                    <p className="text-yellow-200/60 mb-6">Click "Add Field" above to craft your elite form</p>
+                  <div className="bg-gradient-to-br from-slate-950 to-black border-2 border-dashed border-yellow-700/50 rounded-xl p-10 sm:p-20 text-center shadow-2xl shadow-yellow-900/20">
+                    <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">📝</div>
+                    <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-yellow-200 to-amber-400 bg-clip-text text-transparent mb-2">No Fields Yet</h3>
+                    <p className="text-yellow-200/60 mb-4 sm:mb-6 text-sm">Click "Add Field" above to craft your elite form</p>
                     <button
                       onClick={() => setShowAddField(true)}
-                      className="px-6 py-3 bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-500 hover:from-yellow-400 hover:via-amber-300 hover:to-yellow-400 text-black font-extrabold rounded-lg shadow-lg shadow-yellow-900/60 hover:shadow-xl hover:shadow-yellow-800/70 transition-all duration-300 border border-yellow-400/50"
+                      className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-500 hover:from-yellow-400 hover:via-amber-300 hover:to-yellow-400 text-black font-extrabold rounded-lg shadow-lg shadow-yellow-900/60 hover:shadow-xl hover:shadow-yellow-800/70 transition-all duration-300 border border-yellow-400/50 text-sm"
                     >
                       ✨ Add First Field
                     </button>
@@ -374,16 +374,16 @@ const FormBuilderPage: React.FC = () => {
                           isEditing ? 'border-yellow-500 ring-2 ring-yellow-500/50 shadow-yellow-900/40' : 'border-yellow-900/30 hover:border-yellow-700/60 shadow-yellow-900/10'
                         }`}
                       >
-                        {/* Field Header */}
-                        <div className="p-4 flex items-center justify-between bg-black/40 backdrop-blur-sm">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <span className="text-2xl">{fieldType?.icon}</span>
+                      {/* Field Header */}
+                        <div className="p-3 sm:p-4 flex items-center justify-between bg-black/40 backdrop-blur-sm">
+                          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                            <span className="text-lg sm:text-2xl">{fieldType?.icon}</span>
                             <div className="flex-1 min-w-0">
-                              <h3 className="text-sm font-bold text-yellow-100 truncate">{field.fieldLabel}</h3>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs text-yellow-500/70 font-mono">{field.fieldName}</span>
-                                {field.required && <span className="px-2 py-0.5 bg-yellow-500/25 text-yellow-300 rounded text-xs font-medium border border-yellow-500/40 shadow-sm">Required</span>}
-                                {isProtected && <span className="px-2 py-0.5 bg-cyan-400/20 text-cyan-300 rounded text-xs font-medium border border-cyan-400/30 shadow-sm">System</span>}
+                              <h3 className="text-xs sm:text-sm font-bold text-yellow-100 truncate">{field.fieldLabel}</h3>
+                              <div className="flex items-center gap-1 sm:gap-2 mt-0.5 sm:mt-1 flex-wrap">
+                                <span className="text-[10px] sm:text-xs text-yellow-500/70 font-mono truncate max-w-[80px] sm:max-w-none">{field.fieldName}</span>
+                                {field.required && <span className="px-1.5 sm:px-2 py-0.5 bg-yellow-500/25 text-yellow-300 rounded text-[10px] sm:text-xs font-medium border border-yellow-500/40 shadow-sm">Required</span>}
+                                {isProtected && <span className="px-1.5 sm:px-2 py-0.5 bg-cyan-400/20 text-cyan-300 rounded text-[10px] sm:text-xs font-medium border border-cyan-400/30 shadow-sm">System</span>}
                               </div>
                             </div>
                           </div>
@@ -433,21 +433,21 @@ const FormBuilderPage: React.FC = () => {
 
                         {/* Edit Panel - Simplified */}
                         {isEditing && (
-                          <div className="p-4 bg-black/40 border-t border-yellow-800/40 space-y-3 backdrop-blur-sm">
+                          <div className="p-3 sm:p-4 bg-black/40 border-t border-yellow-800/40 space-y-2 sm:space-y-3 backdrop-blur-sm">
                             <div>
-                              <label className="block text-xs font-medium text-yellow-300/80 mb-1.5">Field Label</label>
+                              <label className="block text-[10px] sm:text-xs font-medium text-yellow-300/80 mb-1 sm:mb-1.5">Field Label</label>
                               <input
                                 type="text"
                                 value={field.fieldLabel}
                                 onChange={(e) => updateField(index, { fieldLabel: e.target.value })}
-                                className="w-full px-3 py-2 text-sm bg-black/50 border border-yellow-700/50 rounded-lg text-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500/60 transition-all placeholder:text-slate-600"
+                                className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-black/50 border border-yellow-700/50 rounded-lg text-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500/60 transition-all placeholder:text-slate-600"
                                 placeholder="What should this field be called?"
                               />
                             </div>
 
                             {field.fieldType === 'select' && (
                               <div>
-                                <label className="block text-xs font-medium text-yellow-300/80 mb-1.5">Options (comma-separated)</label>
+                                <label className="block text-[10px] sm:text-xs font-medium text-yellow-300/80 mb-1 sm:mb-1.5">Options (comma-separated)</label>
                                 <input
                                   type="text"
                                   defaultValue={(field.options || []).join(', ')}
@@ -455,26 +455,26 @@ const FormBuilderPage: React.FC = () => {
                                     const options = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
                                     updateField(index, { options });
                                   }}
-                                  className="w-full px-3 py-2 text-sm bg-black/50 border border-yellow-700/50 rounded-lg text-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500/60 transition-all placeholder:text-slate-600"
+                                  className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-black/50 border border-yellow-700/50 rounded-lg text-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500/60 transition-all placeholder:text-slate-600"
                                   placeholder="Option 1, Option 2, Option 3"
                                 />
                               </div>
                             )}
 
-                            <label className="flex items-center gap-2 p-3 bg-yellow-900/15 border border-yellow-800/40 rounded-lg cursor-pointer hover:bg-yellow-900/25 hover:border-yellow-600/60 transition-all duration-300">
+                            <label className="flex items-center gap-2 p-2 sm:p-3 bg-yellow-900/15 border border-yellow-800/40 rounded-lg cursor-pointer hover:bg-yellow-900/25 hover:border-yellow-600/60 transition-all duration-300">
                               <input
                                 type="checkbox"
                                 checked={field.required}
                                 onChange={(e) => updateField(index, { required: e.target.checked })}
                                 disabled={isProtected}
-                                className="w-4 h-4 rounded border-yellow-600 text-yellow-500 focus:ring-2 focus:ring-yellow-500 disabled:opacity-50 cursor-pointer bg-black/50"
+                                className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-yellow-600 text-yellow-500 focus:ring-2 focus:ring-yellow-500 disabled:opacity-50 cursor-pointer bg-black/50"
                               />
-                              <span className="text-sm font-medium text-yellow-100/90">Make this field required</span>
+                              <span className="text-xs sm:text-sm font-medium text-yellow-100/90">Make this field required</span>
                             </label>
 
                             <button
                               onClick={() => setEditingIndex(null)}
-                              className="w-full px-4 py-2.5 bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-500 hover:from-yellow-400 hover:via-amber-300 hover:to-yellow-400 text-black font-extrabold rounded-lg transition-all duration-300 shadow-lg shadow-yellow-900/60 hover:shadow-xl hover:shadow-yellow-800/70 border border-yellow-400/50"
+                              className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-500 hover:from-yellow-400 hover:via-amber-300 hover:to-yellow-400 text-black font-extrabold rounded-lg transition-all duration-300 shadow-lg shadow-yellow-900/60 hover:shadow-xl hover:shadow-yellow-800/70 border border-yellow-400/50 text-xs sm:text-sm"
                             >
                               ✓ Done Editing
                             </button>
