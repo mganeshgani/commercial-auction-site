@@ -37,42 +37,7 @@ exports.registerPlayer = async (req, res) => {
       }
     }
 
-    // Upload photo to Cloudinary
-    let photoUrl = '';
-    if (req.file) {
-      try {
-        // Upload buffer to Cloudinary
-        const result = await new Promise((resolve, reject) => {
-          const uploadStream = cloudinary.uploader.upload_stream(
-            {
-              folder: 'auction-players',
-              public_id: `player_${regNo}_${Date.now()}`,
-              resource_type: 'image',
-              transformation: [
-                { width: 800, height: 800, crop: 'limit' },
-                { quality: 'auto' },
-                { fetch_format: 'auto' }
-              ]
-            },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result);
-            }
-          );
-          uploadStream.end(req.file.buffer);
-        });
-        
-        photoUrl = result.secure_url;
-        console.log('✓ Photo uploaded to Cloudinary:', photoUrl);
-      } catch (uploadError) {
-        console.error('❌ Cloudinary upload error:', uploadError);
-        return res.status(400).json({ 
-          error: 'Failed to upload photo. Please try again.' 
-        });
-      }
-    }
-
-    // Separate core fields from custom fields
+    // Separate core fields from custom fields (do this first while upload happens)
     const { class: playerClass, position } = customFieldsData;
     
     // Build custom fields map (exclude core fields)
@@ -83,12 +48,43 @@ exports.registerPlayer = async (req, res) => {
       }
     });
 
-    // Auto-generate regNo if not provided
+    // Auto-generate regNo if not provided (parallel with upload)
     let finalRegNo = regNo;
+    const countPromise = !finalRegNo ? Player.countDocuments({ auctioneer: auctioneer._id }) : null;
+
+    // Upload photo to Cloudinary (OPTIMIZED - async transformations)
+    let photoUrl = '';
+    const uploadPromise = req.file ? new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'auction-players',
+          public_id: `player_${regNo || 'temp'}_${Date.now()}`,
+          resource_type: 'image',
+          transformation: [
+            { width: 600, height: 600, crop: 'limit', quality: 'auto:good' }
+          ],
+          eager_async: true, // Process async - don't wait
+          invalidate: false // Faster upload
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result.secure_url);
+        }
+      );
+      uploadStream.end(req.file.buffer);
+    }) : Promise.resolve('');
+
+    // Execute count and upload in parallel
+    const [playerCount, uploadedUrl] = await Promise.all([
+      countPromise,
+      uploadPromise
+    ]);
+
     if (!finalRegNo) {
-      const playerCount = await Player.countDocuments({ auctioneer: auctioneer._id });
-      finalRegNo = `P${String(playerCount + 1).padStart(4, '0')}`; // P0001, P0002, etc.
+      finalRegNo = `P${String(playerCount + 1).padStart(4, '0')}`;
     }
+    
+    photoUrl = uploadedUrl;
 
     // Create new player linked to auctioneer
     const player = new Player({
@@ -585,63 +581,49 @@ exports.createPlayer = async (req, res) => {
       });
     }
 
-    // Check if registration number already exists for this auctioneer (only if provided)
-    if (regNo) {
-      const existingPlayer = await Player.findOne({ 
-        regNo, 
-        auctioneer: req.user._id 
+    // Prepare async operations
+    const checkPromise = regNo ? Player.findOne({ regNo, auctioneer: req.user._id }).lean() : Promise.resolve(null);
+    const countPromise = !regNo ? Player.countDocuments({ auctioneer: req.user._id }) : Promise.resolve(0);
+
+    // Upload photo to Cloudinary (OPTIMIZED - async, faster)
+    const uploadPromise = req.file ? new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'auction-players',
+          public_id: `player_${regNo || 'temp'}_${Date.now()}`,
+          resource_type: 'image',
+          transformation: [
+            { width: 600, height: 600, crop: 'limit', quality: 'auto:good' }
+          ],
+          eager_async: true, // Non-blocking transformations
+          invalidate: false
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result.secure_url);
+        }
+      );
+      uploadStream.end(req.file.buffer);
+    }) : Promise.resolve('https://via.placeholder.com/400x400?text=' + encodeURIComponent(name.charAt(0)));
+
+    // Execute all operations in parallel
+    const [existingPlayer, playerCount, photoUrl] = await Promise.all([
+      checkPromise,
+      countPromise,
+      uploadPromise
+    ]);
+
+    // Check after parallel execution
+    if (existingPlayer) {
+      return res.status(400).json({ 
+        error: 'A player with this registration number already exists' 
       });
-      
-      if (existingPlayer) {
-        return res.status(400).json({ 
-          error: 'A player with this registration number already exists' 
-        });
-      }
     }
 
     // Auto-generate regNo if not provided
     let finalRegNo = regNo;
     if (!finalRegNo) {
-      const playerCount = await Player.countDocuments({ auctioneer: req.user._id });
-      finalRegNo = `P${String(playerCount + 1).padStart(4, '0')}`; // P0001, P0002, etc.
-    }
-
-    // Upload photo to Cloudinary if provided
-    let photoUrl = '';
-    if (req.file) {
-      try {
-        const result = await new Promise((resolve, reject) => {
-          const uploadStream = cloudinary.uploader.upload_stream(
-            {
-              folder: 'auction-players',
-              public_id: `player_${finalRegNo}_${Date.now()}`,
-              resource_type: 'image',
-              eager: [
-                { width: 800, height: 800, crop: 'limit', quality: 'auto:best', fetch_format: 'auto' }
-              ],
-              eager_async: true, // Process transformations asynchronously
-              overwrite: true,
-              invalidate: true
-            },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result);
-            }
-          );
-          uploadStream.end(req.file.buffer);
-        });
-        
-        photoUrl = result.secure_url;
-        console.log('Photo uploaded:', photoUrl);
-      } catch (uploadError) {
-        console.error('Error uploading photo:', uploadError);
-        return res.status(400).json({ 
-          error: 'Failed to upload photo. Please try again.' 
-        });
-      }
-    } else {
-      // Use a default placeholder if no photo provided
-      photoUrl = 'https://via.placeholder.com/400x400?text=' + encodeURIComponent(name.charAt(0));
+      finalRegNo = `P${String(playerCount + 1).padStart(4, '0')}`;
     }
 
     // Create new player
@@ -655,17 +637,14 @@ exports.createPlayer = async (req, res) => {
       status: 'available'
     });
 
-    // Save player and upload photo in parallel
-    const savePromise = player.save();
+    // Save player
+    await player.save();
     
-    // Emit socket event immediately for real-time updates (optimistic)
+    // Emit socket event for real-time updates
     const io = req.app.get('io');
     if (io) {
       io.to(`auctioneer_${req.user._id}`).emit('playerAdded', player);
     }
-
-    await savePromise;
-    console.log('Player created successfully:', player._id);
 
     res.status(201).json(player);
   } catch (error) {

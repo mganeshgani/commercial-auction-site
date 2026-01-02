@@ -8,7 +8,8 @@ const { protect } = require('../middleware/auth.middleware');
 const photoUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit (for HEIC files)
+    fileSize: 5 * 1024 * 1024, // 5MB limit (optimized for speed)
+    files: 1
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp|heic|heif/i;

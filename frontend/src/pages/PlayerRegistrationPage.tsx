@@ -200,12 +200,13 @@ const PlayerRegistrationPage: React.FC = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
+      // Show success immediately (optimistic)
       setShowSuccess(true);
+      setLoading(false);
       handleClearForm();
     } catch (error: any) {
       console.error('Registration error:', error);
       setMessage({ type: 'error', text: error.response?.data?.error || 'Failed to register. Please try again.' });
-    } finally {
       setLoading(false);
     }
   };

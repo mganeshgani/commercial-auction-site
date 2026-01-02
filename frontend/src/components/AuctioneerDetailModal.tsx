@@ -164,6 +164,50 @@ const AuctioneerDetailModal: React.FC<AuctioneerDetailModalProps> = ({
     }
   };
 
+  const handleResetData = async () => {
+    const confirmMessage = `⚠️ CRITICAL WARNING ⚠️
+
+This will PERMANENTLY DELETE ALL data for ${auctioneer.name}:
+
+✗ ${auctioneer.usage.totalPlayers} Players (with photos)
+✗ ${auctioneer.usage.totalTeams} Teams (with logos)
+✗ All form configurations
+✗ All Cloudinary images
+
+The auctioneer account will remain, but ALL their data will be GONE FOREVER.
+
+Type "DELETE" to confirm this action.`;
+
+    const userInput = window.prompt(confirmMessage);
+    if (userInput !== 'DELETE') {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      setSuccessMessage('');
+
+      const token = localStorage.getItem('token');
+      const response = await axios.delete(
+        `${API_URL}/admin/auctioneers/${auctioneer._id}/reset`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const data = response.data.data;
+      setSuccessMessage(
+        `✅ Data reset complete! Deleted: ${data.deletedPlayers} players, ${data.deletedTeams} teams, ${data.deletedPlayerPhotos} photos, ${data.deletedTeamLogos} logos`
+      );
+      onUpdate();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to reset auctioneer data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const playersPercentage = (auctioneer.usage.totalPlayers / auctioneer.limits.maxPlayers) * 100;
   const teamsPercentage = (auctioneer.usage.totalTeams / auctioneer.limits.maxTeams) * 100;
 
@@ -551,19 +595,42 @@ const AuctioneerDetailModal: React.FC<AuctioneerDetailModalProps> = ({
                     </svg>
                     Danger Zone
                   </h3>
-                  <p className="text-slate-400 mb-4">
-                    Deleting this auctioneer will permanently remove all their data including players, teams, and auction history. This action cannot be undone.
-                  </p>
-                  <button
-                    onClick={handleDelete}
-                    disabled={loading}
-                    className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-all disabled:opacity-50 flex items-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    {loading ? 'Deleting...' : 'Delete Auctioneer'}
-                  </button>
+                  
+                  {/* Reset Data Section */}
+                  <div className="mb-6 pb-6 border-b border-red-500/20">
+                    <h4 className="text-base font-semibold text-amber-400 mb-2">Reset All Data</h4>
+                    <p className="text-slate-400 text-sm mb-4">
+                      This will permanently delete all players ({auctioneer.usage.totalPlayers}), teams ({auctioneer.usage.totalTeams}), photos, and configurations. The auctioneer account will remain active but completely empty.
+                    </p>
+                    <button
+                      onClick={handleResetData}
+                      disabled={loading}
+                      className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-medium transition-all disabled:opacity-50 flex items-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      {loading ? 'Resetting...' : 'Reset All Data'}
+                    </button>
+                  </div>
+
+                  {/* Delete Account Section */}
+                  <div>
+                    <h4 className="text-base font-semibold text-red-400 mb-2">Delete Account</h4>
+                    <p className="text-slate-400 text-sm mb-4">
+                      Deleting this auctioneer will permanently remove the account and all their data including players, teams, and auction history. This action cannot be undone.
+                    </p>
+                    <button
+                      onClick={handleDelete}
+                      disabled={loading}
+                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-all disabled:opacity-50 flex items-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      {loading ? 'Deleting...' : 'Delete Auctioneer Account'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

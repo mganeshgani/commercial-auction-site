@@ -15,6 +15,7 @@ router.get('/auctioneers', adminController.getAllAuctioneers);
 router.get('/auctioneers/:id', adminController.getAuctioneer);
 router.put('/auctioneers/:id', adminController.updateAuctioneer);
 router.delete('/auctioneers/:id', adminController.deleteAuctioneer);
+router.delete('/auctioneers/:id/reset', adminController.resetAuctioneerData);
 
 // Access control
 router.post('/auctioneers/:id/grant-access', adminController.grantAccess);

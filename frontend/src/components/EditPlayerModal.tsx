@@ -130,31 +130,42 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
         submitData.append('photo', photo);
       }
 
+      // Close modal immediately for better UX (optimistic update)
+      onSuccess();
+      setLoading(false);
+
+      // Send request in background
       if (isAddMode) {
-        // Add new player
-        await axios.post(`${API_URL}/players`, submitData, {
+        axios.post(`${API_URL}/players`, submitData, {
           headers: { 
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
           }
+        }).then(() => {
+          // Refresh list after successful upload
+          onSuccess();
+        }).catch(err => {
+          console.error('Error:', err);
+          alert(err.response?.data?.error || 'Failed to add player. Please try again.');
+          onSuccess(); // Refresh to show current state
         });
       } else {
-        // Update existing player
-        await axios.put(`${API_URL}/players/${player._id}`, submitData, {
+        axios.put(`${API_URL}/players/${player._id}`, submitData, {
           headers: { 
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
           }
+        }).then(() => {
+          onSuccess();
+        }).catch(err => {
+          console.error('Error:', err);
+          alert(err.response?.data?.error || 'Failed to update player. Please try again.');
+          onSuccess();
         });
       }
-      
-      onSuccess();
     } catch (err: any) {
-      console.error('Error:', err);
-      alert(err.response?.data?.error || `Failed to ${isAddMode ? 'add' : 'update'} player. Please try again.`);
-      // Refresh the list even on error to show any partial updates
-      onSuccess();
-    } finally {
+      console.error('Submit error:', err);
+      alert('Failed to prepare submission. Please try again.');
       setLoading(false);
     }
   };

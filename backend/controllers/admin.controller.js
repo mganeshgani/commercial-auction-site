@@ -1,6 +1,8 @@
 const User = require('../models/user.model');
 const Player = require('../models/player.model');
 const Team = require('../models/team.model');
+const FormConfig = require('../models/formConfig.model');
+const cloudinary = require('../config/cloudinary');
 
 // @desc    Create new auctioneer account
 // @route   POST /api/admin/auctioneers/create
@@ -304,6 +306,116 @@ exports.deleteAuctioneer = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Error deleting auctioneer'
+    });
+  }
+};
+
+// @desc    Reset/Delete ALL auctioneer data (players, teams, form configs, photos)
+// @route   DELETE /api/admin/auctioneers/:id/reset
+// @access  Admin only
+exports.resetAuctioneerData = async (req, res) => {
+  try {
+    const auctioneerId = req.params.id;
+
+    // Verify auctioneer exists
+    const auctioneer = await User.findById(auctioneerId);
+    if (!auctioneer || auctioneer.role !== 'auctioneer') {
+      return res.status(404).json({
+        success: false,
+        error: 'Auctioneer not found'
+      });
+    }
+
+    console.log(`🗑️ Starting complete data reset for auctioneer: ${auctioneer.name} (${auctioneer.email})`);
+
+    // 1. Get all players for this auctioneer (to delete their photos)
+    const players = await Player.find({ auctioneer: auctioneerId });
+    console.log(`📋 Found ${players.length} players to delete`);
+
+    // 2. Get all teams for this auctioneer (to delete their logos)
+    const teams = await Team.find({ auctioneer: auctioneerId });
+    console.log(`📋 Found ${teams.length} teams to delete`);
+
+    // 3. Delete all player photos from Cloudinary
+    let playerPhotosDeleted = 0;
+    for (const player of players) {
+      if (player.photo && player.photo.includes('cloudinary.com')) {
+        try {
+          // Extract public_id from Cloudinary URL
+          const urlParts = player.photo.split('/');
+          const fileWithExt = urlParts[urlParts.length - 1];
+          const publicId = `auction-players/${fileWithExt.split('.')[0]}`;
+          
+          await cloudinary.uploader.destroy(publicId);
+          playerPhotosDeleted++;
+        } catch (error) {
+          console.error(`⚠️ Failed to delete photo for player ${player.name}:`, error.message);
+        }
+      }
+    }
+    console.log(`✅ Deleted ${playerPhotosDeleted} player photos from Cloudinary`);
+
+    // 4. Delete all team logos from Cloudinary
+    let teamLogosDeleted = 0;
+    for (const team of teams) {
+      if (team.logo && team.logo.includes('cloudinary.com')) {
+        try {
+          // Extract public_id from Cloudinary URL
+          const urlParts = team.logo.split('/');
+          const fileWithExt = urlParts[urlParts.length - 1];
+          const publicId = `auction-teams/${fileWithExt.split('.')[0]}`;
+          
+          await cloudinary.uploader.destroy(publicId);
+          teamLogosDeleted++;
+        } catch (error) {
+          console.error(`⚠️ Failed to delete logo for team ${team.name}:`, error.message);
+        }
+      }
+    }
+    console.log(`✅ Deleted ${teamLogosDeleted} team logos from Cloudinary`);
+
+    // 5. Delete all database records
+    const [deletedPlayers, deletedTeams, deletedFormConfigs] = await Promise.all([
+      Player.deleteMany({ auctioneer: auctioneerId }),
+      Team.deleteMany({ auctioneer: auctioneerId }),
+      FormConfig.deleteMany({ auctioneer: auctioneerId })
+    ]);
+
+    console.log(`✅ Database cleanup complete:`);
+    console.log(`   - Players deleted: ${deletedPlayers.deletedCount}`);
+    console.log(`   - Teams deleted: ${deletedTeams.deletedCount}`);
+    console.log(`   - Form configs deleted: ${deletedFormConfigs.deletedCount}`);
+
+    // 6. Reset auctioneer's registration token (force new link generation)
+    auctioneer.registrationToken = undefined;
+    auctioneer.registrationTokenExpiry = undefined;
+    await auctioneer.save();
+
+    // 7. Emit socket event for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`auctioneer_${auctioneerId}`).emit('dataReset', {
+        message: 'All your data has been reset by admin'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        auctioneerName: auctioneer.name,
+        deletedPlayers: deletedPlayers.deletedCount,
+        deletedTeams: deletedTeams.deletedCount,
+        deletedFormConfigs: deletedFormConfigs.deletedCount,
+        deletedPlayerPhotos: playerPhotosDeleted,
+        deletedTeamLogos: teamLogosDeleted
+      },
+      message: `All data for ${auctioneer.name} has been completely reset`
+    });
+  } catch (error) {
+    console.error('❌ Error resetting auctioneer data:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error resetting auctioneer data'
     });
   }
 };
