@@ -160,18 +160,12 @@ const AuctionPage: React.FC = () => {
     }, 4000);
 
     try {
-      // Perform API calls in parallel
-      await Promise.all([
-        playerService.updatePlayer(currentPlayer._id, {
-          status: 'sold',
-          team: teamId,
-          soldAmount: soldAmount
-        }),
-        teamService.patchTeam(teamId, {
-          $push: { players: currentPlayer._id },
-          soldAmount: soldAmount
-        })
-      ]);
+      // Only call player update - it handles team budget deduction automatically
+      await playerService.updatePlayer(currentPlayer._id, {
+        status: 'sold',
+        team: teamId,
+        soldAmount: soldAmount
+      });
 
       setShowPlayer(false);
       setCurrentPlayer(null);
