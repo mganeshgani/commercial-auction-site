@@ -21,11 +21,16 @@ interface EditPlayerModalProps {
 
 const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSuccess }) => {
   const [formData, setFormData] = useState<Record<string, any>>({});
-  const [formFields, setFormFields] = useState<FormField[]>([]);
+  const [formFields, setFormFields] = useState<FormField[]>([
+    { fieldName: 'name', fieldLabel: 'Player Name', fieldType: 'text', required: true, placeholder: 'Enter full name', order: 1 },
+    { fieldName: 'regNo', fieldLabel: 'Registration Number', fieldType: 'text', required: false, placeholder: 'Auto-generated if empty', order: 2 },
+    { fieldName: 'class', fieldLabel: 'Class', fieldType: 'text', required: true, placeholder: 'Enter class', order: 3 },
+    { fieldName: 'position', fieldLabel: 'Position', fieldType: 'text', required: true, placeholder: 'Enter position', order: 4 },
+    { fieldName: 'photo', fieldLabel: 'Player Photo', fieldType: 'file', required: true, order: 5 }
+  ]);
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>(player?.photoUrl || '');
   const [loading, setLoading] = useState(false);
-  const [loadingFields, setLoadingFields] = useState(true);
   const [error, setError] = useState<string>('');
 
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
@@ -39,44 +44,28 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
       });
       
       const fields = response.data.fields || [];
-      setFormFields(fields);
-      
-      // Initialize form data with existing player data or empty values
-      const initialData: Record<string, any> = {};
-      fields.forEach((field: FormField) => {
-        if (player && (player as any)[field.fieldName] !== undefined) {
-          initialData[field.fieldName] = (player as any)[field.fieldName];
-        } else {
-          initialData[field.fieldName] = '';
-        }
-      });
-      setFormData(initialData);
+      if (fields.length > 0) {
+        setFormFields(fields);
+      }
     } catch (error) {
       console.error('Error fetching form config:', error);
-      // Fallback to basic fields if form config doesn't exist
-      setFormFields([
-        { fieldName: 'name', fieldLabel: 'Player Name', fieldType: 'text', required: true, placeholder: 'Enter full name', order: 1 },
-        { fieldName: 'regNo', fieldLabel: 'Registration Number', fieldType: 'text', required: false, placeholder: 'Auto-generated if empty', order: 2 },
-        { fieldName: 'class', fieldLabel: 'Class', fieldType: 'text', required: true, placeholder: 'Enter class', order: 3 },
-        { fieldName: 'position', fieldLabel: 'Position', fieldType: 'text', required: true, placeholder: 'Enter position', order: 4 },
-        { fieldName: 'photo', fieldLabel: 'Player Photo', fieldType: 'file', required: true, order: 5 }
-      ]);
-      const initialData: Record<string, any> = {
-        name: player?.name || '',
-        regNo: player?.regNo || '',
-        class: player?.class || '',
-        position: player?.position || ''
-      };
-      setFormData(initialData);
-    } finally {
-      setLoadingFields(false);
+      // Keep using default fields on error
     }
-  }, [API_URL, player]);
+  }, [API_URL]);
 
-  // Fetch form configuration on mount
+  // Initialize form data immediately and fetch config in background
   useEffect(() => {
+    const initialData: Record<string, any> = {
+      name: player?.name || '',
+      regNo: player?.regNo || '',
+      class: player?.class || '',
+      position: player?.position || ''
+    };
+    setFormData(initialData);
+    
+    // Fetch form config in background (non-blocking)
     fetchFormConfig();
-  }, [fetchFormConfig]);
+  }, []); // Empty deps - only run once on mount
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -148,7 +137,7 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
             render: 'Player added successfully!',
             type: 'success',
             isLoading: false,
-            autoClose: 2000
+            autoClose: 1000
           });
           // Socket will handle the refresh automatically
         }).catch(err => {
@@ -157,7 +146,7 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
             render: err.response?.data?.error || 'Failed to add player. Please try again.',
             type: 'error',
             isLoading: false,
-            autoClose: 5000
+            autoClose: 3000
           });
           // Trigger manual refresh on error
           onSuccess();
@@ -174,7 +163,7 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
             render: 'Player updated successfully!',
             type: 'success',
             isLoading: false,
-            autoClose: 2000
+            autoClose: 1000
           });
           onSuccess();
         }).catch(err => {
@@ -183,7 +172,7 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
             render: err.response?.data?.error || 'Failed to update player. Please try again.',
             type: 'error',
             isLoading: false,
-            autoClose: 5000
+            autoClose: 3000
           });
           onSuccess();
         });
@@ -196,6 +185,74 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
   };
 
   const renderField = (field: FormField) => {
+    // Skip photo field - it's handled separately
+    if (field.fieldType === 'file') {
+      return null;
+    }
+
+    const value = formData[field.fieldName] || '';
+
+    switch (field.fieldType) {
+      case 'select':
+        return (
+          <div key={field.fieldName}>
+            <label className="block text-sm font-bold text-gray-300 mb-2">
+              {field.fieldLabel} {field.required && <span className="text-red-400">*</span>}
+            </label>
+            <select
+              name={field.fieldName}
+              value={value}
+              onChange={handleInputChange}
+              required={field.required}
+              className="w-full px-4 py-3 bg-slate-900/60 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-amber-500 transition-colors"
+            >
+              <option value="">Select {field.fieldLabel}</option>
+              {field.options?.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+        );
+      
+      case 'textarea':
+        return (
+          <div key={field.fieldName}>
+            <label className="block text-sm font-bold text-gray-300 mb-2">
+              {field.fieldLabel} {field.required && <span className="text-red-400">*</span>}
+            </label>
+            <textarea
+              name={field.fieldName}
+              value={value}
+              onChange={handleInputChange}
+              required={field.required}
+              placeholder={field.placeholder}
+              rows={3}
+              className="w-full px-4 py-3 bg-slate-900/60 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-amber-500 transition-colors resize-none"
+            />
+          </div>
+        );
+      
+      default: // text, number, email, etc.
+        return (
+          <div key={field.fieldName}>
+            <label className="block text-sm font-bold text-gray-300 mb-2">
+              {field.fieldLabel} {field.required && <span className="text-red-400">*</span>}
+            </label>
+            <input
+              type={field.fieldType}
+              name={field.fieldName}
+              value={value}
+              onChange={handleInputChange}
+              required={field.required}
+              placeholder={field.placeholder || ''}
+              className="w-full px-4 py-3 bg-slate-900/60 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-amber-500 transition-colors"
+            />
+          </div>
+        );
+    }
+  };
+
+  return (
     // Skip photo field - it's handled separately
     if (field.fieldType === 'file') {
       return null;
@@ -267,19 +324,6 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
         );
     }
   };
-
-  if (loadingFields) {
-    return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
-        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl sm:rounded-2xl border border-amber-500/30 p-4 sm:p-6 max-w-md w-full shadow-2xl">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-4 border-amber-500 border-t-transparent"></div>
-          </div>
-          <p className="text-center text-gray-400 mt-3 sm:mt-4 text-sm sm:text-base">Loading form...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
