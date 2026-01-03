@@ -61,15 +61,15 @@ const sportTemplates = {
 // Get form configuration for auctioneer
 exports.getFormConfig = async (req, res) => {
   try {
-    let formConfig = await FormConfig.findOne({ auctioneer: req.user._id });
+    let formConfig = await FormConfig.findOne({ auctioneer: req.user._id }).lean();
     
     if (!formConfig) {
       // Create default config if none exists
-      formConfig = new FormConfig({
+      const newConfig = new FormConfig({
         auctioneer: req.user._id,
         ...sportTemplates.general
       });
-      await formConfig.save();
+      formConfig = await newConfig.save();
     }
     
     res.json(formConfig);
@@ -116,7 +116,7 @@ exports.saveFormConfig = async (req, res) => {
       return res.status(400).json({ error: 'At least one field is required' });
     }
     
-// Ensure name and photo are present
+    // Ensure name and photo are present
     const hasName = fields.some(f => f.fieldName === 'name');
     const hasPhoto = fields.some(f => f.fieldName === 'photo');
 
@@ -126,26 +126,23 @@ exports.saveFormConfig = async (req, res) => {
       });
     }
     
-    let formConfig = await FormConfig.findOne({ auctioneer: req.user._id });
-    
-    if (formConfig) {
-      // Update existing config
-      formConfig.sportType = sportType || formConfig.sportType;
-      formConfig.formTitle = formTitle || formConfig.formTitle;
-      formConfig.formDescription = formDescription || formConfig.formDescription;
-      formConfig.fields = fields;
-    } else {
-      // Create new config
-      formConfig = new FormConfig({
-        auctioneer: req.user._id,
-        sportType: sportType || 'general',
-        formTitle: formTitle || 'Player Registration',
-        formDescription: formDescription || 'Fill in your details to register',
-        fields
-      });
-    }
-    
-    await formConfig.save();
+    // Use findOneAndUpdate for better performance
+    const formConfig = await FormConfig.findOneAndUpdate(
+      { auctioneer: req.user._id },
+      {
+        $set: {
+          sportType: sportType || 'general',
+          formTitle: formTitle || 'Player Registration',
+          formDescription: formDescription || 'Fill in your details to register',
+          fields
+        }
+      },
+      { 
+        new: true, 
+        upsert: true,
+        lean: true
+      }
+    );
     
     res.json({ 
       message: 'Form configuration saved successfully',
@@ -171,23 +168,23 @@ exports.loadSportTemplate = async (req, res) => {
       });
     }
     
-    let formConfig = await FormConfig.findOne({ auctioneer: req.user._id });
-    
-    if (formConfig) {
-      // Update with template
-      formConfig.sportType = template.sportType;
-      formConfig.formTitle = template.formTitle;
-      formConfig.formDescription = template.formDescription;
-      formConfig.fields = template.fields;
-    } else {
-      // Create new with template
-      formConfig = new FormConfig({
-        auctioneer: req.user._id,
-        ...template
-      });
-    }
-    
-    await formConfig.save();
+    // Use findOneAndUpdate for better performance
+    const formConfig = await FormConfig.findOneAndUpdate(
+      { auctioneer: req.user._id },
+      {
+        $set: {
+          sportType: template.sportType,
+          formTitle: template.formTitle,
+          formDescription: template.formDescription,
+          fields: template.fields
+        }
+      },
+      { 
+        new: true, 
+        upsert: true,
+        lean: true
+      }
+    );
     
     res.json({ 
       message: 'Template loaded successfully',

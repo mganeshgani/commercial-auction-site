@@ -6,6 +6,7 @@ import RegistrationLinkGenerator from '../components/RegistrationLinkGenerator';
 import EditPlayerModal from '../components/EditPlayerModal';
 import { useAuth } from '../contexts/AuthContext';
 import { playerService, clearCache } from '../services/api';
+import { initializeSocket } from '../services/socket';
 
 const PlayersPage: React.FC = () => {
   const { isAuctioneer } = useAuth();
@@ -36,6 +37,31 @@ const PlayersPage: React.FC = () => {
 
   useEffect(() => {
     fetchPlayers();
+  }, [fetchPlayers]);
+
+  // Socket.IO listener for real-time player updates
+  useEffect(() => {
+    const socket = initializeSocket();
+
+    // Listen for playerAdded event
+    socket.on('playerAdded', (newPlayer: Player) => {
+      console.log('✓ Player added via socket:', newPlayer.name);
+      clearCache(); // Clear cache to fetch fresh data
+      fetchPlayers(); // Refresh the list
+    });
+
+    // Listen for playerUpdated event
+    socket.on('playerUpdated', (updatedPlayer: Player) => {
+      console.log('✓ Player updated via socket:', updatedPlayer.name);
+      clearCache();
+      fetchPlayers();
+    });
+
+    // Cleanup on unmount
+    return () => {
+      socket.off('playerAdded');
+      socket.off('playerUpdated');
+    };
   }, [fetchPlayers]);
 
   const handleDeletePlayer = useCallback(async (playerId: string) => {
@@ -381,6 +407,7 @@ const PlayersPage: React.FC = () => {
           player={editingPlayer}
           onClose={() => setEditingPlayer(null)}
           onSuccess={() => {
+            clearCache(); // Clear cache before fetching fresh data
             fetchPlayers();
             setEditingPlayer(null);
           }}
@@ -393,6 +420,7 @@ const PlayersPage: React.FC = () => {
           player={null}
           onClose={() => setShowAddModal(false)}
           onSuccess={() => {
+            clearCache(); // Clear cache before fetching fresh data
             fetchPlayers();
             setShowAddModal(false);
           }}

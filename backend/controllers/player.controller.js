@@ -61,7 +61,7 @@ exports.registerPlayer = async (req, res) => {
           public_id: `player_${regNo || 'temp'}_${Date.now()}`,
           resource_type: 'image',
           transformation: [
-            { width: 600, height: 600, crop: 'limit', quality: 'auto:good' }
+            { width: 600, height: 600, crop: 'limit', quality: 'auto:good', fetch_format: 'webp' }
           ],
           eager_async: true, // Process async - don't wait
           invalidate: false // Faster upload
@@ -383,10 +383,10 @@ exports.updatePlayer = async (req, res) => {
               public_id: `player_${player.regNo || playerId}_${Date.now()}`,
               resource_type: 'image',
               transformation: [
-                { width: 800, height: 800, crop: 'limit' },
-                { quality: 'auto' },
-                { fetch_format: 'auto' }
-              ]
+                { width: 600, height: 600, crop: 'limit', quality: 'auto:good', fetch_format: 'webp' }
+              ],
+              eager_async: true,
+              invalidate: false
             },
             (error, result) => {
               if (error) reject(error);
@@ -593,7 +593,7 @@ exports.createPlayer = async (req, res) => {
           public_id: `player_${regNo || 'temp'}_${Date.now()}`,
           resource_type: 'image',
           transformation: [
-            { width: 600, height: 600, crop: 'limit', quality: 'auto:good' }
+            { width: 600, height: 600, crop: 'limit', quality: 'auto:good', fetch_format: 'webp' }
           ],
           eager_async: true, // Non-blocking transformations
           invalidate: false

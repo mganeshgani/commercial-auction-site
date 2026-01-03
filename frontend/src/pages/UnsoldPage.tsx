@@ -55,6 +55,36 @@ const UnsoldPage: React.FC = () => {
       return;
     }
 
+    // OPTIMIZED: Play confetti immediately (before API calls)
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 }
+    });
+
+    // OPTIMIZED: Update UI immediately (optimistic update)
+    setTeams(prevTeams => 
+      prevTeams.map(team => 
+        team._id === selectedTeam 
+          ? { 
+              ...team, 
+              filledSlots: team.filledSlots + 1,
+              remainingBudget: (team.remainingBudget ?? team.budget ?? 0) - soldAmount,
+              players: [...(team.players || []), selectedPlayer]
+            }
+          : team
+      )
+    );
+
+    // Remove player from unsold list immediately
+    setUnsoldPlayers(prev => prev.filter(p => p._id !== selectedPlayer._id));
+
+    // Close modal immediately
+    setShowModal(false);
+    setSelectedPlayer(null);
+    setSoldAmount(0);
+    setSelectedTeam('');
+
     try {
       // Update player with sold status, team, and amount
       await playerService.updatePlayer(selectedPlayer._id, {
@@ -63,28 +93,15 @@ const UnsoldPage: React.FC = () => {
         soldAmount: soldAmount
       });
 
-      // Add player to team and deduct amount
-      await teamService.patchTeam(selectedTeam, {
-        $push: { players: selectedPlayer._id },
-        soldAmount: soldAmount
-      });
-
-      // Play confetti
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-      
-      // Clear cache and refresh
+      // Clear cache and refresh in background (non-blocking)
       clearCache();
-      setShowModal(false);
-      setSelectedPlayer(null);
-      setSoldAmount(0);
-      setSelectedTeam('');
-      await Promise.all([fetchUnsoldPlayers(), fetchTeams()]);
+      fetchUnsoldPlayers();
+      fetchTeams();
     } catch (error) {
       console.error('Error auctioning player:', error);
+      // Revert optimistic update on error
+      clearCache();
+      await Promise.all([fetchUnsoldPlayers(), fetchTeams()]);
     }
   }, [selectedPlayer, selectedTeam, soldAmount, fetchUnsoldPlayers, fetchTeams]);
 

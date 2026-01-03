@@ -4,6 +4,8 @@ import { AuctionProvider } from './contexts/AuctionContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Eagerly load Layout components to prevent header flash during navigation
 import Layout from './layouts/Layout';
@@ -72,6 +74,21 @@ function App() {
       <Router>
         <AuthProvider>
           <AuctionProvider>
+            <ToastContainer
+              position="top-right"
+              autoClose={3000}
+              hideProgressBar={false}
+              newestOnTop={true}
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+              theme="dark"
+              style={{
+                zIndex: 99999
+              }}
+            />
             <Suspense fallback={<LoadingSpinner />}>
               <Routes>
                 {/* Public Routes */}

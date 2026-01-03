@@ -448,18 +448,19 @@ const TeamsPage: React.FC = () => {
           ></div>
 
           {/* Modal */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+          <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4">
             <div
-              className="relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden pointer-events-auto animate-slideUp"
+              className="relative w-full max-w-lg my-8 rounded-2xl shadow-2xl pointer-events-auto animate-slideUp"
               onClick={(e) => e.stopPropagation()}
               style={{
                 background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(13, 17, 23, 0.95) 50%, rgba(0, 0, 0, 0.95) 100%)',
                 border: '2px solid rgba(212, 175, 55, 0.3)',
-                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.9), 0 0 80px rgba(212, 175, 55, 0.2)'
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.9), 0 0 80px rgba(212, 175, 55, 0.2)',
+                maxHeight: 'calc(100vh - 4rem)'
               }}
             >
               {/* Modal Header */}
-              <div className="relative border-b p-6" style={{
+              <div className="relative border-b p-6 flex-shrink-0" style={{
                 background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(0, 0, 0, 0.5) 100%)',
                 borderBottom: '1px solid rgba(212, 175, 55, 0.3)'
               }}>
@@ -491,8 +492,9 @@ const TeamsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Modal Body */}
-              <form onSubmit={handleSubmit} className="p-6 space-y-5">
+              {/* Modal Body - Scrollable */}
+              <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 16rem)' }}>
+                <form onSubmit={handleSubmit} className="p-6 space-y-5">
                 {/* Team Logo Upload */}
                 <div>
                   <label className="block text-sm font-bold text-gray-300 mb-2">
@@ -663,6 +665,7 @@ const TeamsPage: React.FC = () => {
                   </button>
                 </div>
               </form>
+              </div>
             </div>
           </div>
 
@@ -708,8 +711,8 @@ const TeamsPage: React.FC = () => {
 
       {/* Reset Confirmation Modal */}
       {showResetModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-red-500/30 max-w-md w-full animate-slideUp">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-red-500/30 max-w-md w-full my-8 animate-slideUp">
             <div className="p-6">
               {/* Warning Icon */}
               <div className="flex items-center justify-center mb-4">

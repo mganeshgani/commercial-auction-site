@@ -148,11 +148,30 @@ const AuctionPage: React.FC = () => {
     // Find team name for celebration display
     const acquiredTeam = teams.find(t => t._id === teamId);
     
-    // Show celebration immediately - before API calls
+    // OPTIMIZED: Show celebration immediately - before API calls
     setCelebrationAmount(soldAmount);
     setCelebrationTeamName(acquiredTeam?.name || 'Team');
     setShowCelebration(true);
     playSoldSound();
+
+    // OPTIMIZED: Update UI immediately (optimistic update)
+    setTeams(prevTeams => 
+      prevTeams.map(team => 
+        team._id === teamId 
+          ? { 
+              ...team, 
+              filledSlots: team.filledSlots + 1,
+              remainingBudget: (team.remainingBudget ?? team.budget ?? 0) - soldAmount,
+              players: [...(team.players || []), currentPlayer]
+            }
+          : team
+      )
+    );
+
+    // Clear current player immediately for better UX
+    setShowPlayer(false);
+    setCurrentPlayer(null);
+    setSoldAmount(0);
 
     // Hide celebration after 4 seconds
     const celebrationTimer = setTimeout(() => {
@@ -167,16 +186,13 @@ const AuctionPage: React.FC = () => {
         soldAmount: soldAmount
       });
 
-      setShowPlayer(false);
-      setCurrentPlayer(null);
-      setSoldAmount(0);
-      
-      // Fetch updates in background without awaiting
+      // Fetch updates in background to sync with server (non-blocking)
       fetchTeams();
       fetchAvailableCount();
     } catch (error) {
       console.error('Error assigning player:', error);
-      alert('Failed to assign player');
+      // Revert optimistic update on error
+      fetchTeams();
       clearTimeout(celebrationTimer);
       setShowCelebration(false);
     }

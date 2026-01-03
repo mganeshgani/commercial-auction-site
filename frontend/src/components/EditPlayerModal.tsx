@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Player } from '../types';
+import { toast } from 'react-toastify';
 
 interface FormField {
   fieldName: string;
@@ -112,9 +113,6 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
     try {
       const token = localStorage.getItem('token');
       
-      // Close modal immediately for better UX (optimistic update)
-      onClose();
-      
       // Prepare form data with all dynamic fields
       const submitData = new FormData();
       
@@ -130,42 +128,69 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
         submitData.append('photo', photo);
       }
 
-      // Close modal immediately for better UX (optimistic update)
-      onSuccess();
+      // OPTIMIZED: Close modal immediately
+      onClose();
       setLoading(false);
+
+      // Show loading toast
+      const toastId = toast.loading(isAddMode ? 'Adding player...' : 'Updating player...');
 
       // Send request in background
       if (isAddMode) {
+        // Background upload for add mode
         axios.post(`${API_URL}/players`, submitData, {
           headers: { 
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
           }
         }).then(() => {
-          // Refresh list after successful upload
-          onSuccess();
+          toast.update(toastId, {
+            render: 'Player added successfully!',
+            type: 'success',
+            isLoading: false,
+            autoClose: 2000
+          });
+          // Socket will handle the refresh automatically
         }).catch(err => {
           console.error('Error:', err);
-          alert(err.response?.data?.error || 'Failed to add player. Please try again.');
-          onSuccess(); // Refresh to show current state
+          toast.update(toastId, {
+            render: err.response?.data?.error || 'Failed to add player. Please try again.',
+            type: 'error',
+            isLoading: false,
+            autoClose: 5000
+          });
+          // Trigger manual refresh on error
+          onSuccess();
         });
       } else {
+        // For updates, await and then refresh
         axios.put(`${API_URL}/players/${player._id}`, submitData, {
           headers: { 
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
           }
         }).then(() => {
+          toast.update(toastId, {
+            render: 'Player updated successfully!',
+            type: 'success',
+            isLoading: false,
+            autoClose: 2000
+          });
           onSuccess();
         }).catch(err => {
           console.error('Error:', err);
-          alert(err.response?.data?.error || 'Failed to update player. Please try again.');
+          toast.update(toastId, {
+            render: err.response?.data?.error || 'Failed to update player. Please try again.',
+            type: 'error',
+            isLoading: false,
+            autoClose: 5000
+          });
           onSuccess();
         });
       }
     } catch (err: any) {
       console.error('Submit error:', err);
-      alert('Failed to prepare submission. Please try again.');
+      toast.error(err.response?.data?.error || 'Failed to prepare submission. Please try again.');
       setLoading(false);
     }
   };

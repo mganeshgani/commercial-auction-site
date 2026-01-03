@@ -51,8 +51,9 @@ const FormBuilderPage: React.FC = () => {
     { id: 'basketball', name: 'Basketball', description: 'Basketball team registration', icon: '🏀' },
   ];
 
-  const fetchFormConfig = useCallback(async () => {
+  const fetchFormConfig = useCallback(async (showLoader = true) => {
     try {
+      if (showLoader) setLoading(true);
       const token = localStorage.getItem('token');
       const response = await axios.get(`${API_URL}/form-config`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -68,7 +69,7 @@ const FormBuilderPage: React.FC = () => {
     } catch (error) {
       console.error('Error fetching form config:', error);
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
   }, [API_URL]);
 
@@ -136,6 +137,11 @@ const FormBuilderPage: React.FC = () => {
       return;
     }
     setSaving(true);
+    
+    // Navigate immediately for better UX
+    navigate('/players');
+    
+    // Save in background
     try {
       const token = localStorage.getItem('token');
       await axios.post(
@@ -143,16 +149,16 @@ const FormBuilderPage: React.FC = () => {
         { formTitle, formDescription, fields: fields.map((f, i) => ({ ...f, order: i + 1 })) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      navigate('/players');
     } catch (error: any) {
       console.error('Error saving form:', error);
+      alert('Failed to save form configuration');
     } finally {
       setSaving(false);
     }
   };
 
   const loadTemplate = async (templateId: string) => {
-    // Handle custom template - reset to default fields
+    // Handle custom template - reset to default fields (instant)
     if (templateId === 'custom') {
       setFormTitle('Player Registration');
       setFormDescription('Fill in your details to register');
@@ -181,6 +187,7 @@ const FormBuilderPage: React.FC = () => {
       setFields(updatedFields);
     } catch (error: any) {
       console.error('Error loading template:', error);
+      alert('Failed to load template');
     }
   };
 

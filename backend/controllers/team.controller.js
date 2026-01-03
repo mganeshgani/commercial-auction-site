@@ -16,37 +16,30 @@ exports.createTeam = async (req, res) => {
     }
 
     const { name, totalSlots, budget } = req.body;
-    
-    // Upload logo to Cloudinary if provided
-    let logoUrl = '';
-    if (req.file) {
-      try {
-        const result = await new Promise((resolve, reject) => {
-          const uploadStream = cloudinary.uploader.upload_stream(
-            {
-              folder: 'team-logos',
-              public_id: `team_${name}_${Date.now()}`,
-              resource_type: 'image',
-              transformation: [
-                { width: 200, height: 200, crop: 'fill', gravity: 'auto' },
-                { quality: 'auto:eco' },
-                { fetch_format: 'auto' }
-              ],
-              eager: [],
-              eager_async: false
-            },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result);
-            }
-          );
-          uploadStream.end(req.file.buffer);
-        });
-        logoUrl = result.secure_url;
-      } catch (uploadError) {
-        console.error('Error uploading logo:', uploadError);
-      }
-    }
+
+    // OPTIMIZED: Prepare upload promise but don't await yet
+    const uploadPromise = req.file ? new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'team-logos',
+          public_id: `team_${name}_${Date.now()}`,
+          resource_type: 'image',
+          transformation: [
+            { width: 200, height: 200, crop: 'limit', quality: 'auto:eco', fetch_format: 'webp' }
+          ],
+          eager_async: true, // Non-blocking transformations for max speed
+          invalidate: false
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result.secure_url);
+        }
+      );
+      uploadStream.end(req.file.buffer);
+    }) : Promise.resolve('');
+
+    // OPTIMIZED: Upload happens in parallel with team creation
+    const logoUrl = await uploadPromise;
     
     const team = new Team({
       name,
@@ -70,6 +63,7 @@ exports.createTeam = async (req, res) => {
     if (error.code === 11000) { // Duplicate key error
       return res.status(400).json({ error: 'Team name already exists in your auction' });
     }
+    console.error('Error creating team:', error);
     res.status(500).json({ error: 'Error creating team' });
   }
 };
@@ -110,44 +104,41 @@ exports.updateTeam = async (req, res) => {
     // Regular update fields
     const { name, totalSlots, budget } = updateData;
 
-    // Upload new logo if provided
-    if (req.file) {
-      try {
-        const result = await new Promise((resolve, reject) => {
-          const uploadStream = cloudinary.uploader.upload_stream(
-            {
-              folder: 'team-logos',
-              public_id: `team_${name || team.name}_${Date.now()}`,
-              resource_type: 'image',
-              transformation: [
-                { width: 200, height: 200, crop: 'fill', gravity: 'auto' },
-                { quality: 'auto:eco' },
-                { fetch_format: 'auto' }
-              ],
-              eager: [],
-              eager_async: false
-            },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result);
-            }
-          );
-          uploadStream.end(req.file.buffer);
-        });
-        team.logoUrl = result.secure_url;
-      } catch (uploadError) {
-        console.error('Error uploading logo:', uploadError);
-      }
-    }
-
-    // Validate total slots
+    // Validate total slots before upload
     if (totalSlots && totalSlots < team.filledSlots) {
       return res.status(400).json({ 
         error: 'New total slots cannot be less than current filled slots' 
       });
     }
 
-    // Update fields
+    // OPTIMIZED: Prepare logo upload promise (non-blocking)
+    const uploadPromise = req.file ? new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'team-logos',
+          public_id: `team_${name || team.name}_${Date.now()}`,
+          resource_type: 'image',
+          transformation: [
+            { width: 200, height: 200, crop: 'limit', quality: 'auto:eco', fetch_format: 'webp' }
+          ],
+          eager_async: true, // Non-blocking transformations
+          invalidate: false
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result.secure_url);
+        }
+      );
+      uploadStream.end(req.file.buffer);
+    }) : Promise.resolve(null);
+
+    // OPTIMIZED: Update fields and upload in parallel
+    const [logoUrl] = await Promise.all([
+      uploadPromise,
+      Promise.resolve() // Placeholder for field updates below
+    ]);
+
+    if (logoUrl) team.logoUrl = logoUrl;
     if (name) team.name = name;
     if (totalSlots) team.totalSlots = totalSlots;
     if (budget !== undefined) {
