@@ -96,6 +96,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     };
   }, [showUserMenu]);
 
+  // Check if limits are reached
+  const isPlayersLimitReached = user?.limits?.maxPlayers && user?.usage?.totalPlayers 
+    ? user.usage.totalPlayers >= user.limits.maxPlayers 
+    : false;
+  const isTeamsLimitReached = user?.limits?.maxTeams && user?.usage?.totalTeams
+    ? user.usage.totalTeams >= user.limits.maxTeams
+    : false;
+
   const handleLogout = async () => {
     setShowUserMenu(false);
     await logout();
@@ -365,6 +373,96 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                         </div>
                       </div>
                     </div>
+                    
+                    {/* Account Limits Section - Only for auctioneers */}
+                    {user?.role === 'auctioneer' && user?.limits && (
+                      <div className="px-4 py-3" style={{
+                        background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.05) 0%, rgba(212, 175, 55, 0.02) 100%)',
+                        borderBottom: '1px solid rgba(212, 175, 55, 0.2)'
+                      }}>
+                        <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-2.5">Account Limits</p>
+                        
+                        {/* Players Limit */}
+                        <div className="space-y-1.5 mb-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-slate-300 flex items-center gap-1.5">
+                              <span>⚽</span>
+                              <span>Players</span>
+                            </span>
+                            <span className="text-xs font-bold" style={{
+                              color: isPlayersLimitReached ? '#ef4444' : user.usage && user.limits.maxPlayers > 0 && (user.usage.totalPlayers / user.limits.maxPlayers > 0.8) ? '#f59e0b' : '#10b981'
+                            }}>
+                              {user.usage?.totalPlayers || 0} / {user.limits.maxPlayers === 0 ? '∞' : user.limits.maxPlayers}
+                            </span>
+                          </div>
+                          {user.limits.maxPlayers > 0 && (
+                            <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-500"
+                                style={{
+                                  width: `${Math.min(((user.usage?.totalPlayers || 0) / user.limits.maxPlayers) * 100, 100)}%`,
+                                  background: isPlayersLimitReached 
+                                    ? 'linear-gradient(90deg, #ef4444, #dc2626)' 
+                                    : (user.usage && (user.usage.totalPlayers / user.limits.maxPlayers > 0.8)) 
+                                    ? 'linear-gradient(90deg, #f59e0b, #d97706)' 
+                                    : 'linear-gradient(90deg, #10b981, #059669)',
+                                  boxShadow: isPlayersLimitReached 
+                                    ? '0 0 8px rgba(239, 68, 68, 0.6)' 
+                                    : (user.usage && (user.usage.totalPlayers / user.limits.maxPlayers > 0.8))
+                                    ? '0 0 8px rgba(245, 158, 11, 0.6)'
+                                    : '0 0 8px rgba(16, 185, 129, 0.6)'
+                                }}
+                              ></div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Teams Limit */}
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-slate-300 flex items-center gap-1.5">
+                              <span>🏆</span>
+                              <span>Teams</span>
+                            </span>
+                            <span className="text-xs font-bold" style={{
+                              color: isTeamsLimitReached ? '#ef4444' : user.usage && user.limits.maxTeams > 0 && (user.usage.totalTeams / user.limits.maxTeams > 0.8) ? '#f59e0b' : '#10b981'
+                            }}>
+                              {user.usage?.totalTeams || 0} / {user.limits.maxTeams === 0 ? '∞' : user.limits.maxTeams}
+                            </span>
+                          </div>
+                          {user.limits.maxTeams > 0 && (
+                            <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-500"
+                                style={{
+                                  width: `${Math.min(((user.usage?.totalTeams || 0) / user.limits.maxTeams) * 100, 100)}%`,
+                                  background: isTeamsLimitReached 
+                                    ? 'linear-gradient(90deg, #ef4444, #dc2626)' 
+                                    : (user.usage && (user.usage.totalTeams / user.limits.maxTeams > 0.8)) 
+                                    ? 'linear-gradient(90deg, #f59e0b, #d97706)' 
+                                    : 'linear-gradient(90deg, #10b981, #059669)',
+                                  boxShadow: isTeamsLimitReached 
+                                    ? '0 0 8px rgba(239, 68, 68, 0.6)' 
+                                    : (user.usage && (user.usage.totalTeams / user.limits.maxTeams > 0.8))
+                                    ? '0 0 8px rgba(245, 158, 11, 0.6)'
+                                    : '0 0 8px rgba(16, 185, 129, 0.6)'
+                                }}
+                              ></div>
+                            </div>
+                          )}
+                        </div>
+
+                        {(isPlayersLimitReached || isTeamsLimitReached) && (
+                          <div className="mt-3 p-2 rounded-lg text-[10px] text-red-400 flex items-start gap-2" style={{
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)'
+                          }}>
+                            <span>⚠️</span>
+                            <span>Limit reached! Contact admin to increase.</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     
                     {/* Menu Items */}
                     <div className="p-2">

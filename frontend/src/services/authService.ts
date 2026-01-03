@@ -8,6 +8,15 @@ export interface User {
   isActive?: boolean;
   lastLogin?: Date;
   createdAt?: Date;
+  limits?: {
+    maxPlayers: number;
+    maxTeams: number;
+  };
+  usage?: {
+    totalPlayers: number;
+    totalTeams: number;
+  };
+  accessExpiry?: string;
 }
 
 export interface AuthResponse {

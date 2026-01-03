@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { teamService, clearCache } from '../services/api';
 
 const TeamsPage: React.FC = () => {
-  const { isAuctioneer } = useAuth();
+  const { isAuctioneer, user } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -220,7 +220,16 @@ const TeamsPage: React.FC = () => {
           {isAuctioneer && (
           <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={() => {
+              const isLimitReached = user?.limits?.maxTeams && user?.usage?.totalTeams
+                ? user.usage.totalTeams >= user.limits.maxTeams
+                : false;
+              if (isLimitReached) {
+                alert(`⚠️ Team Limit Reached!\n\nYou have reached your maximum team limit of ${user?.limits?.maxTeams}.\n\nCurrent: ${user?.usage?.totalTeams} / ${user?.limits?.maxTeams}\n\nPlease contact your administrator to increase your limit.`);
+                return;
+              }
+              setShowAddModal(true);
+            }}
             className="group px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg font-bold text-xs sm:text-sm transition-all duration-300 hover:scale-105 shadow-lg flex items-center gap-1 sm:gap-2 flex-1 sm:flex-initial justify-center"
             style={{
               background: 'linear-gradient(135deg, #D4AF37 0%, #F0D770 50%, #D4AF37 100%)',
@@ -300,135 +309,176 @@ const TeamsPage: React.FC = () => {
               return (
                 <div
                   key={team._id}
-                  className="group relative rounded-xl p-4 shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
+                  className="group relative rounded-xl overflow-hidden shadow-lg transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(10, 10, 10, 0.6) 50%, rgba(0, 0, 0, 0.7) 100%)',
-                    border: '2px solid rgba(212, 175, 55, 0.3)',
-                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.6), 0 0 40px rgba(212, 175, 55, 0.1)'
+                    background: 'linear-gradient(135deg, rgba(15, 15, 15, 0.95) 0%, rgba(30, 30, 30, 0.95) 100%)',
+                    border: '2px solid rgba(212, 175, 55, 0.4)',
+                    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(212, 175, 55, 0.15)'
                   }}
                 >
-                  {/* Team Header */}
-                  <div className="flex justify-between items-start mb-3">
+                  {/* Header with Logo and Name */}
+                  <div className="relative p-4 pb-3" style={{
+                    background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(240, 215, 112, 0.1) 100%)',
+                    borderBottom: '1px solid rgba(212, 175, 55, 0.3)'
+                  }}>
                     <div className="flex items-center gap-3">
                       {/* Team Logo */}
-                      <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center" style={{
-                        background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(240, 215, 112, 0.2) 100%)',
-                        border: '2px solid rgba(212, 175, 55, 0.4)'
+                      <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center shadow-xl" style={{
+                        background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.3) 0%, rgba(240, 215, 112, 0.3) 100%)',
+                        border: '2px solid rgba(212, 175, 55, 0.5)'
                       }}>
                         {team.logoUrl ? (
                           <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-2xl font-bold text-amber-400">{team.name.charAt(0)}</span>
+                          <span className="text-3xl font-bold" style={{ color: '#D4AF37' }}>{team.name.charAt(0)}</span>
                         )}
                       </div>
-                      <div>
-                        <h3 className="text-xl font-black tracking-tight" style={{
-                          background: 'linear-gradient(135deg, #FFFFFF 0%, #F0D770 50%, #D4AF37 100%)',
+                      
+                      {/* Team Name and ID */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-black tracking-tight truncate" style={{
+                          background: 'linear-gradient(135deg, #FFFFFF 0%, #F0D770 100%)',
                           WebkitBackgroundClip: 'text',
                           WebkitTextFillColor: 'transparent',
                           backgroundClip: 'text',
                           textShadow: '0 2px 10px rgba(212, 175, 55, 0.3)'
                         }}>{team.name}</h3>
-                        <p className="text-xs text-gray-500 font-medium mt-1">Team ID: {team._id.slice(-6)}</p>
+                        <p className="text-[10px] text-gray-500 font-medium mt-0.5">ID: {team._id.slice(-6)}</p>
                       </div>
+
+                      {/* Action Buttons */}
+                      {isAuctioneer && (
+                        <div className="flex gap-1.5 flex-shrink-0">
+                          <button
+                            onClick={() => openEditModal(team)}
+                            className="w-8 h-8 rounded-lg bg-blue-600/20 hover:bg-blue-600 border border-blue-600/30 hover:border-blue-500 flex items-center justify-center transition-all duration-200 hover:scale-110"
+                            title="Edit Team"
+                          >
+                            <svg className="w-3.5 h-3.5 text-blue-400 hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(team._id)}
+                            className="w-8 h-8 rounded-lg bg-red-600/20 hover:bg-red-600 border border-red-600/30 hover:border-red-500 flex items-center justify-center transition-all duration-200 hover:scale-110"
+                            title="Delete Team"
+                          >
+                            <svg className="w-3.5 h-3.5 text-red-400 hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    {isAuctioneer && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => openEditModal(team)}
-                        className="w-8 h-8 rounded-lg bg-blue-600/20 hover:bg-blue-600 border border-blue-600/30 hover:border-blue-500 flex items-center justify-center transition-all duration-300 hover:scale-110 group/edit"
-                        title="Edit Team"
-                      >
-                        <svg className="w-3.5 h-3.5 text-blue-400 group-hover/edit:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(team._id)}
-                        className="w-8 h-8 rounded-lg bg-red-600/20 hover:bg-red-600 border border-red-600/30 hover:border-red-500 flex items-center justify-center transition-all duration-300 hover:scale-110 group/delete"
-                        title="Delete Team"
-                      >
-                        <svg className="w-3.5 h-3.5 text-red-400 group-hover/delete:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                    )}
                   </div>
 
-                  {/* Stats Grid */}
-                  <div className="space-y-3">
-                    {/* Budget Section */}
-                    <div className="rounded-lg p-3" style={{
-                      background: 'rgba(0, 0, 0, 0.5)',
-                      border: '1px solid rgba(212, 175, 55, 0.2)'
-                    }}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                          Budget
-                        </span>
-                        <span className="text-xs font-black" style={{ color: '#D4AF37' }}>₹{(team.budget || 0).toLocaleString()}</span>
+                  {/* Stats Content */}
+                  <div className="p-4 space-y-3">
+                    {/* Budget Stats */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{
+                            background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(240, 215, 112, 0.2) 100%)',
+                            border: '1px solid rgba(212, 175, 55, 0.4)'
+                          }}>
+                            <span className="text-sm">💰</span>
+                          </div>
+                          <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Budget</span>
+                        </div>
+                        <span className="text-sm font-black" style={{ color: '#D4AF37' }}>₹{(team.budget || 0).toLocaleString()}</span>
                       </div>
-                      <div className="h-1.5 rounded-full overflow-hidden mb-1.5" style={{ background: 'rgba(0, 0, 0, 0.5)' }}>
-                        <div
-                          className="h-full rounded-full transition-all duration-500"
-                          style={{
-                            width: `${budgetPercentage}%`,
-                            background: budgetPercentage > 60
-                              ? 'linear-gradient(to right, #10b981, #059669)'
-                              : budgetPercentage > 30
-                              ? 'linear-gradient(to right, #D4AF37, #F0D770)'
-                              : 'linear-gradient(to right, #dc2626, #b91c1c)'
-                          }}
-                        ></div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] text-gray-500">Remaining</span>
-                        <span className="text-xs font-bold" style={{ color: '#F0D770' }}>₹{(team.remainingBudget || 0).toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    {/* Players/Slots Section */}
-                    <div className="rounded-lg p-3" style={{
-                      background: 'rgba(0, 0, 0, 0.5)',
-                      border: '1px solid rgba(212, 175, 55, 0.2)'
-                    }}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                          Players
-                        </span>
-                        <span className="text-xs font-black" style={{ color: '#D4AF37' }}>{team.filledSlots || 0} / {team.totalSlots}</span>
-                      </div>
-                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(0, 0, 0, 0.5)' }}>
-                        <div
-                          className="h-full rounded-full transition-all duration-500"
-                          style={{
-                            width: `${slotsPercentage}%`,
-                            background: slotsPercentage < 50
-                              ? 'linear-gradient(to right, #D4AF37, #F0D770)'
-                              : slotsPercentage < 80
-                              ? 'linear-gradient(to right, #C9A661, #D4AF37)'
-                              : 'linear-gradient(to right, #10b981, #059669)'
-                          }}
-                        ></div>
+                      
+                      {/* Budget Progress Bar */}
+                      <div className="space-y-1.5">
+                        <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(0, 0, 0, 0.6)' }}>
+                          <div
+                            className="h-full rounded-full transition-all duration-500 shadow-lg"
+                            style={{
+                              width: `${budgetPercentage}%`,
+                              background: budgetPercentage > 60
+                                ? 'linear-gradient(to right, #10b981, #059669)'
+                                : budgetPercentage > 30
+                                ? 'linear-gradient(to right, #F59E0B, #D97706)'
+                                : 'linear-gradient(to right, #dc2626, #b91c1c)',
+                              boxShadow: budgetPercentage > 60
+                                ? '0 0 10px rgba(16, 185, 129, 0.5)'
+                                : budgetPercentage > 30
+                                ? '0 0 10px rgba(245, 158, 11, 0.5)'
+                                : '0 0 10px rgba(220, 38, 38, 0.5)'
+                            }}
+                          ></div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] text-gray-500 uppercase">Remaining</span>
+                          <span className="text-xs font-bold" style={{ 
+                            color: budgetPercentage > 30 ? '#10b981' : '#dc2626' 
+                          }}>₹{(team.remainingBudget || 0).toLocaleString()}</span>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Quick Stats */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-lg p-2" style={{
-                        background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(240, 215, 112, 0.1) 100%)',
-                        border: '1px solid rgba(212, 175, 55, 0.3)'
-                      }}>
-                        <p className="text-[10px] text-gray-400 mb-0.5">Spent</p>
-                        <p className="text-sm font-black text-white">₹{((team.budget || 0) - (team.remainingBudget || 0)).toLocaleString()}</p>
+                    {/* Players/Slots Stats */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{
+                            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.2) 100%)',
+                            border: '1px solid rgba(59, 130, 246, 0.4)'
+                          }}>
+                            <span className="text-sm">👥</span>
+                          </div>
+                          <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Squad</span>
+                        </div>
+                        <span className="text-sm font-black text-blue-400">{team.filledSlots || 0} / {team.totalSlots}</span>
                       </div>
-                      <div className="rounded-lg p-2" style={{
-                        background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(240, 215, 112, 0.1) 100%)',
-                        border: '1px solid rgba(212, 175, 55, 0.3)'
+                      
+                      {/* Players Progress Bar */}
+                      <div className="space-y-1.5">
+                        <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(0, 0, 0, 0.6)' }}>
+                          <div
+                            className="h-full rounded-full transition-all duration-500 shadow-lg"
+                            style={{
+                              width: `${slotsPercentage}%`,
+                              background: slotsPercentage < 50
+                                ? 'linear-gradient(to right, #F59E0B, #D97706)'
+                                : slotsPercentage < 80
+                                ? 'linear-gradient(to right, #3B82F6, #2563EB)'
+                                : 'linear-gradient(to right, #10b981, #059669)',
+                              boxShadow: slotsPercentage < 50
+                                ? '0 0 10px rgba(245, 158, 11, 0.5)'
+                                : slotsPercentage < 80
+                                ? '0 0 10px rgba(59, 130, 246, 0.5)'
+                                : '0 0 10px rgba(16, 185, 129, 0.5)'
+                            }}
+                          ></div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] text-gray-500 uppercase">Available</span>
+                          <span className="text-xs font-bold text-blue-400">{team.totalSlots - (team.filledSlots || 0)} slots</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-2 gap-2 pt-2" style={{
+                      borderTop: '1px solid rgba(212, 175, 55, 0.2)'
+                    }}>
+                      <div className="rounded-lg p-2.5 text-center" style={{
+                        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)'
                       }}>
-                        <p className="text-[10px] text-gray-400 mb-0.5">Slots Left</p>
-                        <p className="text-sm font-black text-white">{team.totalSlots - (team.filledSlots || 0)}</p>
+                        <p className="text-[9px] text-gray-400 uppercase tracking-wider mb-1">Spent</p>
+                        <p className="text-sm font-black text-emerald-400">₹{((team.budget || 0) - (team.remainingBudget || 0)).toLocaleString()}</p>
+                      </div>
+                      <div className="rounded-lg p-2.5 text-center" style={{
+                        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%)',
+                        border: '1px solid rgba(59, 130, 246, 0.3)'
+                      }}>
+                        <p className="text-[9px] text-gray-400 uppercase tracking-wider mb-1">Per Player</p>
+                        <p className="text-sm font-black text-blue-400">
+                          ₹{team.filledSlots > 0 ? Math.round(((team.budget || 0) - (team.remainingBudget || 0)) / team.filledSlots).toLocaleString() : '0'}
+                        </p>
                       </div>
                     </div>
                   </div>

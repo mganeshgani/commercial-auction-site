@@ -9,7 +9,7 @@ import { playerService, clearCache } from '../services/api';
 import { initializeSocket } from '../services/socket';
 
 const PlayersPage: React.FC = () => {
-  const { isAuctioneer } = useAuth();
+  const { isAuctioneer, user } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'available' | 'sold' | 'unsold'>('all');
@@ -146,7 +146,16 @@ const PlayersPage: React.FC = () => {
           {isAuctioneer && (
             <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  const isLimitReached = user?.limits?.maxPlayers && user?.usage?.totalPlayers 
+                    ? user.usage.totalPlayers >= user.limits.maxPlayers 
+                    : false;
+                  if (isLimitReached) {
+                    alert(`⚠️ Player Limit Reached!\n\nYou have reached your maximum player limit of ${user?.limits?.maxPlayers}.\n\nCurrent: ${user?.usage?.totalPlayers} / ${user?.limits?.maxPlayers}\n\nPlease contact your administrator to increase your limit.`);
+                    return;
+                  }
+                  setShowAddModal(true);
+                }}
                 className="group relative flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all duration-300 overflow-hidden flex-1 sm:flex-none"
                 style={{
                   background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
