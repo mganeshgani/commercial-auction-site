@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo, useRef } from 'react';
 import authService, { User, AuthResponse } from '../services/authService';
 import { connectSocket } from '../services/socket';
 
@@ -31,8 +31,16 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(() => {
+    // Initialize from localStorage for instant render
+    const cached = localStorage.getItem('user');
+    return cached ? JSON.parse(cached) : null;
+  });
+  const [loading, setLoading] = useState(() => {
+    // If we have cached user, don't show loading
+    return !localStorage.getItem('user');
+  });
+  const hasLoadedRef = useRef(false);
 
   // Refresh user data from server (includes updated limits/usage)
   const refreshUser = useCallback(async () => {
@@ -50,49 +58,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
-  // Load user on mount
+  // Load user on mount - only once
   useEffect(() => {
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+    
+    const loadUser = async () => {
+      try {
+        if (authService.isAuthenticated()) {
+          // Connect socket immediately with cached user
+          connectSocket();
+          
+          // Then verify/refresh in background
+          const response = await authService.getMe();
+          if (response.success && response.data) {
+            setUser(response.data.user);
+            localStorage.setItem('user', JSON.stringify(response.data.user));
+          } else {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            setUser(null);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load user:', error);
+        // Keep cached user on network error
+      } finally {
+        setLoading(false);
+      }
+    };
+    
     loadUser();
   }, []);
 
-  const loadUser = async () => {
-    try {
-      if (authService.isAuthenticated()) {
-        const response = await authService.getMe();
-        if (response.success && response.data) {
-          setUser(response.data.user);
-          // Update localStorage with fresh data including limits/usage
-          localStorage.setItem('user', JSON.stringify(response.data.user));
-          // Connect socket after user is loaded
-          connectSocket();
-        } else {
-          // Invalid token, clear it
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          setUser(null);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load user:', error);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const login = async (email: string, password: string): Promise<AuthResponse> => {
+  const login = useCallback(async (email: string, password: string): Promise<AuthResponse> => {
     const response = await authService.login(email, password);
     if (response.success && response.data) {
       setUser(response.data.user);
-      // Store user with full data including limits/usage
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      // Connect socket after login
       connectSocket();
     }
     return response;
-  };
+  }, []);
 
-  const register = async (
+  const register = useCallback(async (
     name: string,
     email: string,
     password: string
@@ -103,29 +112,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
     return response;
-  };
+  }, []);
 
-  const logout = async (): Promise<void> => {
+  const logout = useCallback(async (): Promise<void> => {
     await authService.logout();
     setUser(null);
-  };
+  }, []);
 
-  const updateUser = async (name: string, email: string): Promise<AuthResponse> => {
+  const updateUser = useCallback(async (name: string, email: string): Promise<AuthResponse> => {
     const response = await authService.updateDetails(name, email);
     if (response.success && response.data) {
       setUser(response.data.user);
     }
     return response;
-  };
+  }, []);
 
-  const updatePassword = async (
+  const updatePassword = useCallback(async (
     currentPassword: string,
     newPassword: string
   ): Promise<AuthResponse> => {
     return await authService.updatePassword(currentPassword, newPassword);
-  };
+  }, []);
 
-  const value: AuthContextType = {
+  const value = useMemo<AuthContextType>(() => ({
     user,
     loading,
     login,
@@ -137,7 +146,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',
     isAuctioneer: user?.role === 'admin' || user?.role === 'auctioneer',
-  };
+  }), [user, loading, login, register, logout, updateUser, updatePassword, refreshUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

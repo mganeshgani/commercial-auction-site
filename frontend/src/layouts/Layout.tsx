@@ -30,7 +30,7 @@ const getCachedBranding = (): BrandingConfig => {
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, refreshUser } = useAuth();
+  const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { preloadRoute } = useRoutePreload();
   const [showLimitsDetails, setShowLimitsDetails] = useState(false);
@@ -40,13 +40,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Initialize with cached branding to prevent flash
   const [branding, setBranding] = useState<BrandingConfig>(getCachedBranding);
 
-  // Refresh user data on mount to get accurate limits/usage
+  // Fetch branding config only once per session (use sessionStorage to track)
   useEffect(() => {
-    refreshUser();
-  }, [refreshUser]);
-
-  // Fetch branding config
-  useEffect(() => {
+    const hasFetchedBranding = sessionStorage.getItem('brandingFetched');
+    if (hasFetchedBranding) return; // Already fetched this session
+    
     const fetchBranding = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -62,8 +60,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               logoUrl: b.logoUrl || '/logo.png'
             };
             setBranding(newBranding);
-            // Cache branding in localStorage
             localStorage.setItem('brandingConfig', JSON.stringify(newBranding));
+            sessionStorage.setItem('brandingFetched', 'true');
           }
         }
       } catch (error) {

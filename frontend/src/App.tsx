@@ -1,5 +1,5 @@
-import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { Suspense, lazy, memo } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuctionProvider } from './contexts/AuctionContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -24,8 +24,8 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AuctioneersPage = lazy(() => import('./pages/AuctioneersPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
-// Premium loading spinner component for page content
-const PageLoadingSpinner = () => (
+// Premium loading spinner component for page content - memoized to prevent re-renders
+const PageLoadingSpinner = memo(() => (
   <div className="h-full w-full flex items-center justify-center" style={{
     minHeight: '400px'
   }}>
@@ -39,10 +39,10 @@ const PageLoadingSpinner = () => (
       <p className="mt-3 text-amber-400/80 text-xs font-medium tracking-wider">Loading...</p>
     </div>
   </div>
-);
+));
 
 // Full page loading spinner (for login/initial load)
-const LoadingSpinner = () => (
+const LoadingSpinner = memo(() => (
   <div className="h-screen w-screen flex items-center justify-center" style={{
     background: 'linear-gradient(160deg, #000000 0%, #0a0a0a 25%, #1a1a1a 50%, #0f172a 75%, #1a1a1a 100%)'
   }}>
@@ -56,7 +56,7 @@ const LoadingSpinner = () => (
       <p className="mt-4 text-amber-400/80 text-sm font-medium tracking-wider">Loading...</p>
     </div>
   </div>
-);
+));
 
 // Role-based redirect component
 const RoleBasedRedirect = () => {
@@ -67,6 +67,27 @@ const RoleBasedRedirect = () => {
   }
   return <Navigate to="/auction" replace />;
 };
+
+// Wrapper components that use Outlet for nested routing - prevents Layout remounting
+const AuctioneerLayoutWrapper = memo(() => (
+  <ProtectedRoute requiredRole="auctioneer">
+    <Layout>
+      <Suspense fallback={<PageLoadingSpinner />}>
+        <Outlet />
+      </Suspense>
+    </Layout>
+  </ProtectedRoute>
+));
+
+const AdminLayoutWrapper = memo(() => (
+  <ProtectedRoute requiredRole="admin">
+    <AdminLayout>
+      <Suspense fallback={<PageLoadingSpinner />}>
+        <Outlet />
+      </Suspense>
+    </AdminLayout>
+  </ProtectedRoute>
+));
 
 function App() {
   return (
@@ -109,84 +130,22 @@ function App() {
                 </ProtectedRoute>
               } />
 
-              {/* Admin Routes - Only accessible by admin */}
-              <Route path="/admin/*" element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminLayout>
-                    <Suspense fallback={<PageLoadingSpinner />}>
-                      <Routes>
-                        <Route index element={<AdminDashboard />} />
-                        <Route path="auctioneers" element={<AuctioneersPage />} />
-                      </Routes>
-                    </Suspense>
-                  </AdminLayout>
-                </ProtectedRoute>
-              } />
+              {/* Admin Routes - Single Layout wrapper with nested routes */}
+              <Route path="/admin" element={<AdminLayoutWrapper />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="auctioneers" element={<AuctioneersPage />} />
+              </Route>
 
-              {/* Auctioneer Routes - Accessible by auctioneers only (admin blocked) */}
-              <Route path="/auction" element={
-                <ProtectedRoute requiredRole="auctioneer">
-                  <Layout>
-                    <Suspense fallback={<PageLoadingSpinner />}>
-                      <AuctionPage />
-                    </Suspense>
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/teams" element={
-                <ProtectedRoute requiredRole="auctioneer">
-                  <Layout>
-                    <Suspense fallback={<PageLoadingSpinner />}>
-                      <TeamsPage />
-                    </Suspense>
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/players" element={
-                <ProtectedRoute requiredRole="auctioneer">
-                  <Layout>
-                    <Suspense fallback={<PageLoadingSpinner />}>
-                      <PlayersPage />
-                    </Suspense>
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/unsold" element={
-                <ProtectedRoute requiredRole="auctioneer">
-                  <Layout>
-                    <Suspense fallback={<PageLoadingSpinner />}>
-                      <UnsoldPage />
-                    </Suspense>
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/results" element={
-                <ProtectedRoute requiredRole="auctioneer">
-                  <Layout>
-                    <Suspense fallback={<PageLoadingSpinner />}>
-                      <ResultsPage />
-                    </Suspense>
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/form-builder" element={
-                <ProtectedRoute requiredRole="auctioneer">
-                  <Layout>
-                    <Suspense fallback={<PageLoadingSpinner />}>
-                      <FormBuilderPage />
-                    </Suspense>
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/settings" element={
-                <ProtectedRoute requiredRole="auctioneer">
-                  <Layout>
-                    <Suspense fallback={<PageLoadingSpinner />}>
-                      <SettingsPage />
-                    </Suspense>
-                  </Layout>
-                </ProtectedRoute>
-              } />
+              {/* Auctioneer Routes - Single Layout wrapper with nested routes */}
+              <Route element={<AuctioneerLayoutWrapper />}>
+                <Route path="/auction" element={<AuctionPage />} />
+                <Route path="/teams" element={<TeamsPage />} />
+                <Route path="/players" element={<PlayersPage />} />
+                <Route path="/unsold" element={<UnsoldPage />} />
+                <Route path="/results" element={<ResultsPage />} />
+                <Route path="/form-builder" element={<FormBuilderPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Route>
             </Routes>
           </AuctionProvider>
         </AuthProvider>
