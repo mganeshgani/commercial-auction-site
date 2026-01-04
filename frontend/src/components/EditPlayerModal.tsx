@@ -65,7 +65,8 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
     
     // Fetch form config in background (non-blocking)
     fetchFormConfig();
-  }, []); // Empty deps - only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Intentionally empty - only run once on mount
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -124,8 +125,11 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
       // Show loading toast
       const toastId = toast.loading(isAddMode ? 'Adding player...' : 'Updating player...');
 
-      // Send request in background
+      // OPTIMISTIC UPDATE: Immediately call onSuccess for optimistic UI update
       if (isAddMode) {
+        // Trigger optimistic update immediately
+        onSuccess();
+        
         // Background upload for add mode
         axios.post(`${API_URL}/players`, submitData, {
           headers: { 
@@ -139,7 +143,7 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
             isLoading: false,
             autoClose: 1000
           });
-          // Socket will handle the refresh automatically
+          // Socket will sync the real data
         }).catch(err => {
           console.error('Error:', err);
           toast.update(toastId, {
@@ -148,8 +152,8 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
             isLoading: false,
             autoClose: 3000
           });
-          // Trigger manual refresh on error
-          onSuccess();
+          // Refresh to remove optimistic player and show actual state
+          setTimeout(() => onSuccess(), 500);
         });
       } else {
         // For updates, await and then refresh

@@ -39,28 +39,48 @@ const PlayersPage: React.FC = () => {
     fetchPlayers();
   }, [fetchPlayers]);
 
-  // Socket.IO listener for real-time player updates
+  // Socket.IO listener for real-time player updates with debouncing
   useEffect(() => {
     const socket = initializeSocket();
+    let refreshTimeout: NodeJS.Timeout | null = null;
+
+    console.log('🔌 PlayersPage: Setting up socket listeners');
+
+    // Debounced refresh function to prevent multiple rapid updates
+    const debouncedRefresh = () => {
+      if (refreshTimeout) clearTimeout(refreshTimeout);
+      refreshTimeout = setTimeout(() => {
+        console.log('🔄 Refreshing players...');
+        clearCache();
+        fetchPlayers();
+      }, 300); // 300ms debounce
+    };
 
     // Listen for playerAdded event
     socket.on('playerAdded', (newPlayer: Player) => {
-      console.log('✓ Player added via socket:', newPlayer.name);
-      clearCache(); // Clear cache to fetch fresh data
-      fetchPlayers(); // Refresh the list
+      console.log('✓ Player added via socket:', newPlayer.name, newPlayer);
+      debouncedRefresh();
     });
 
     // Listen for playerUpdated event
     socket.on('playerUpdated', (updatedPlayer: Player) => {
       console.log('✓ Player updated via socket:', updatedPlayer.name);
-      clearCache();
-      fetchPlayers();
+      debouncedRefresh();
+    });
+
+    // Listen for playerDeleted event
+    socket.on('playerDeleted', (deletedPlayer: Player) => {
+      console.log('✓ Player deleted via socket:', deletedPlayer._id);
+      debouncedRefresh();
     });
 
     // Cleanup on unmount
     return () => {
+      console.log('🔌 PlayersPage: Cleaning up socket listeners');
+      if (refreshTimeout) clearTimeout(refreshTimeout);
       socket.off('playerAdded');
       socket.off('playerUpdated');
+      socket.off('playerDeleted');
     };
   }, [fetchPlayers]);
 

@@ -48,9 +48,35 @@ exports.registerPlayer = async (req, res) => {
       }
     });
 
-    // Auto-generate regNo if not provided (parallel with upload)
+    // Auto-generate regNo if not provided
     let finalRegNo = regNo;
-    const countPromise = !finalRegNo ? Player.countDocuments({ auctioneer: auctioneer._id }) : null;
+    
+    if (!finalRegNo) {
+      // Find all players for this auctioneer
+      const allPlayers = await Player.find({ 
+        auctioneer: auctioneer._id
+      })
+      .select('regNo')
+      .lean();
+
+      let maxNumber = 0;
+      
+      // Extract all numbers from regNo
+      allPlayers.forEach(p => {
+        if (p.regNo) {
+          const match = p.regNo.match(/\d+/);
+          if (match) {
+            const num = parseInt(match[0]);
+            if (!isNaN(num) && num > maxNumber) {
+              maxNumber = num;
+            }
+          }
+        }
+      });
+      
+      finalRegNo = `P${String(maxNumber + 1).padStart(4, '0')}`;
+      console.log(`✓ Registration form - Generated regNo: ${finalRegNo} (${allPlayers.length} players, max: ${maxNumber})`);
+    }
 
     // Upload photo to Cloudinary (OPTIMIZED - async transformations)
     let photoUrl = '';
@@ -74,17 +100,8 @@ exports.registerPlayer = async (req, res) => {
       uploadStream.end(req.file.buffer);
     }) : Promise.resolve('');
 
-    // Execute count and upload in parallel
-    const [playerCount, uploadedUrl] = await Promise.all([
-      countPromise,
-      uploadPromise
-    ]);
-
-    if (!finalRegNo) {
-      finalRegNo = `P${String(playerCount + 1).padStart(4, '0')}`;
-    }
-    
-    photoUrl = uploadedUrl;
+    // Wait for upload to complete
+    photoUrl = await uploadPromise;
 
     // Create new player linked to auctioneer
     const player = new Player({
@@ -581,74 +598,147 @@ exports.createPlayer = async (req, res) => {
       });
     }
 
-    // Prepare async operations
-    const checkPromise = regNo ? Player.findOne({ regNo, auctioneer: req.user._id }).lean() : Promise.resolve(null);
-    const countPromise = !regNo ? Player.countDocuments({ auctioneer: req.user._id }) : Promise.resolve(0);
-
-    // Upload photo to Cloudinary (OPTIMIZED - async, faster)
-    const uploadPromise = req.file ? new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: 'auction-players',
-          public_id: `player_${regNo || 'temp'}_${Date.now()}`,
-          resource_type: 'image',
-          transformation: [
-            { width: 600, height: 600, crop: 'limit', quality: 'auto:good', fetch_format: 'webp' }
-          ],
-          eager_async: true, // Non-blocking transformations
-          invalidate: false
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result.secure_url);
-        }
-      );
-      uploadStream.end(req.file.buffer);
-    }) : Promise.resolve('https://via.placeholder.com/400x400?text=' + encodeURIComponent(name.charAt(0)));
-
-    // Execute all operations in parallel
-    const [existingPlayer, playerCount, photoUrl] = await Promise.all([
-      checkPromise,
-      countPromise,
-      uploadPromise
-    ]);
-
-    // Check after parallel execution
-    if (existingPlayer) {
-      return res.status(400).json({ 
-        error: 'A player with this registration number already exists' 
-      });
-    }
-
     // Auto-generate regNo if not provided
     let finalRegNo = regNo;
+    
     if (!finalRegNo) {
-      finalRegNo = `P${String(playerCount + 1).padStart(4, '0')}`;
+      // Find all players for this auctioneer
+      const allPlayers = await Player.find({ 
+        auctioneer: req.user._id
+      })
+      .select('regNo')
+      .lean();
+
+      let maxNumber = 0;
+      
+      // Extract all numbers from regNo (handle any format)
+      allPlayers.forEach(p => {
+        if (p.regNo) {
+          const match = p.regNo.match(/\d+/);
+          if (match) {
+            const num = parseInt(match[0]);
+            if (!isNaN(num) && num > maxNumber) {
+              maxNumber = num;
+            }
+          }
+        }
+      });
+      
+      // Generate next regNo
+      finalRegNo = `P${String(maxNumber + 1).padStart(4, '0')}`;
+      
+      // Double-check it doesn't already exist (extra safety)
+      const existsCheck = await Player.findOne({ 
+        regNo: finalRegNo, 
+        auctioneer: req.user._id 
+      }).lean();
+      
+      if (existsCheck) {
+        // If somehow it still exists, use a guaranteed unique approach
+        const timestamp = Date.now();
+        finalRegNo = `P${String(maxNumber + 1 + (timestamp % 100)).padStart(4, '0')}`;
+        console.log(`⚠️ RegNo collision detected, using: ${finalRegNo}`);
+      } else {
+        console.log(`✓ Generated unique regNo: ${finalRegNo} (${allPlayers.length} players, max: ${maxNumber})`);
+      }
+    } else {
+      // If regNo is provided, check for duplicates
+      const existingPlayer = await Player.findOne({ regNo, auctioneer: req.user._id }).lean();
+      if (existingPlayer) {
+        return res.status(400).json({ 
+          error: 'A player with this registration number already exists' 
+        });
+      }
     }
 
-    // Create new player
+    // Create player with temporary placeholder photo (instant)
+    const tempPhotoUrl = req.file 
+      ? 'https://via.placeholder.com/400x400?text=' + encodeURIComponent(name.charAt(0))
+      : 'https://via.placeholder.com/400x400?text=' + encodeURIComponent(name.charAt(0));
+
     const player = new Player({
       name,
       regNo: finalRegNo,
       class: playerClass,
       position,
-      photoUrl,
+      photoUrl: tempPhotoUrl,
       auctioneer: req.user._id,
       status: 'available'
     });
 
-    // Save player
+    // Save player immediately
     await player.save();
     
-    // Emit socket event for real-time updates
+    // Get IO instance for socket events
     const io = req.app.get('io');
+    
+    // Emit socket event for real-time updates (immediate)
     if (io) {
       io.to(`auctioneer_${req.user._id}`).emit('playerAdded', player);
     }
 
+    // Send immediate response
     res.status(201).json(player);
+
+    // Upload photo to Cloudinary in background (async, non-blocking)
+    if (req.file) {
+      const auctioneerId = req.user._id;
+      const playerId = player._id;
+      const playerName = name;
+      
+      // Wrap in async IIFE to catch unhandled rejections
+      (async () => {
+        try {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              folder: 'auction-players',
+              public_id: `player_${finalRegNo}_${Date.now()}`,
+              resource_type: 'image',
+              transformation: [
+                { width: 600, height: 600, crop: 'limit', quality: 'auto:good', fetch_format: 'webp' }
+              ],
+              eager_async: true,
+              invalidate: false,
+              timeout: 60000
+            },
+            async (error, result) => {
+              if (error) {
+                console.error(`❌ Upload failed for ${playerName}:`, error.message || error);
+                return;
+              }
+              
+              try {
+                const updatedPlayer = await Player.findById(playerId);
+                if (updatedPlayer) {
+                  updatedPlayer.photoUrl = result.secure_url;
+                  await updatedPlayer.save();
+                  
+                  if (io) {
+                    io.to(`auctioneer_${auctioneerId}`).emit('playerUpdated', updatedPlayer);
+                  }
+                  console.log(`✓ Photo uploaded for ${playerName}`);
+                }
+              } catch (err) {
+                console.error(`❌ Error updating photo for ${playerName}:`, err.message);
+              }
+            }
+          );
+          uploadStream.end(req.file.buffer);
+        } catch (err) {
+          console.error(`❌ Background upload error:`, err.message);
+        }
+      })().catch(err => console.error(`❌ Unhandled upload error:`, err.message));
+    }
   } catch (error) {
     console.error('Error creating player:', error);
+    
+    // Handle duplicate key error specifically
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        error: 'A player with this registration number already exists. Please try again.' 
+      });
+    }
+    
     res.status(500).json({ error: error.message || 'Error creating player' });
   }
 };
