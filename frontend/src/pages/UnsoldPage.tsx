@@ -18,18 +18,18 @@ const UnsoldPage: React.FC = () => {
 
   const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
 
-  const fetchUnsoldPlayers = useCallback(async () => {
+  const fetchUnsoldPlayers = useCallback(async (bypassCache = false) => {
     try {
-      const data = await playerService.getUnsoldPlayers(true); // Use cache
+      const data = await playerService.getUnsoldPlayers(!bypassCache); // Use cache unless bypassing
       setUnsoldPlayers(data);
     } catch (error) {
       console.error('Error fetching unsold players:', error);
     }
   }, []);
 
-  const fetchTeams = useCallback(async () => {
+  const fetchTeams = useCallback(async (bypassCache = false) => {
     try {
-      const data = await teamService.getAllTeams(true); // Use cache
+      const data = await teamService.getAllTeams(!bypassCache); // Use cache unless bypassing
       setTeams(data);
     } catch (error) {
       console.error('Error fetching teams:', error);
@@ -57,8 +57,8 @@ const UnsoldPage: React.FC = () => {
       fetchTimeout = setTimeout(() => {
         console.log('🔄 Unsold page: Background update triggered');
         clearCache();
-        fetchUnsoldPlayers();
-        fetchTeams();
+        fetchUnsoldPlayers(true); // Bypass cache
+        fetchTeams(true);
       }, 300);
     };
 
@@ -71,8 +71,8 @@ const UnsoldPage: React.FC = () => {
     socket.on('dataReset', () => {
       console.log('Data reset - clearing cache');
       clearCache();
-      fetchUnsoldPlayers();
-      fetchTeams();
+      fetchUnsoldPlayers(true);
+      fetchTeams(true);
     });
 
     socket.on('disconnect', () => {
@@ -81,7 +81,14 @@ const UnsoldPage: React.FC = () => {
 
     return () => {
       if (fetchTimeout) clearTimeout(fetchTimeout);
-      socket.disconnect();
+      socket.off('connect');
+      socket.off('playerAdded');
+      socket.off('playerDeleted');
+      socket.off('playerSold');
+      socket.off('playerMarkedUnsold');
+      socket.off('playerUpdated');
+      socket.off('dataReset');
+      socket.off('disconnect');
     };
   }, [fetchUnsoldPlayers, fetchTeams]);
 

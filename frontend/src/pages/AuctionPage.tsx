@@ -1,13 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Player, Team } from '../types';
 import SpinWheel from '../components/auction/SpinWheel';
 import PlayerCard from '../components/auction/PlayerCard';
 import TeamCard from '../components/auction/TeamCard';
 import TeamSelectionModal from '../components/auction/TeamSelectionModal';
 import { useAuth } from '../contexts/AuthContext';
-import { playerService, teamService } from '../services/api';
-import { initializeSocket } from '../services/socket';
+import { playerService, teamService, clearCache } from '../services/api';
+import { initializeSocket, requestWakeLock } from '../services/socket';
 import '../maisonCelebration.css';
+
+// Connection status indicator component
+const ConnectionStatus: React.FC<{ isConnected: boolean; lastPing: number | null }> = ({ isConnected, lastPing }) => {
+  const latency = lastPing ? `${lastPing}ms` : '--';
+  
+  return (
+    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-3 py-2 rounded-full backdrop-blur-md shadow-lg transition-all duration-300"
+      style={{
+        background: isConnected 
+          ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.15) 100%)'
+          : 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.15) 100%)',
+        border: `1px solid ${isConnected ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
+        boxShadow: isConnected 
+          ? '0 0 20px rgba(16, 185, 129, 0.2)' 
+          : '0 0 20px rgba(239, 68, 68, 0.2)'
+      }}
+    >
+      <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}
+        style={{ boxShadow: isConnected ? '0 0 8px rgba(16, 185, 129, 0.8)' : '0 0 8px rgba(239, 68, 68, 0.8)' }}
+      />
+      <span className={`text-xs font-semibold ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
+        {isConnected ? 'LIVE' : 'OFFLINE'}
+      </span>
+      {isConnected && lastPing && (
+        <span className="text-[10px] text-gray-400 ml-1">{latency}</span>
+      )}
+    </div>
+  );
+};
 
 const AuctionPage: React.FC = () => {
   const { isAuctioneer } = useAuth();
@@ -22,16 +51,59 @@ const AuctionPage: React.FC = () => {
   const [celebrationAmount, setCelebrationAmount] = useState<number>(0);
   const [celebrationTeamName, setCelebrationTeamName] = useState<string>('');
   const [hasAuctionStarted, setHasAuctionStarted] = useState(false);
+  
+  // Connection status state for long auction sessions
+  const [isConnected, setIsConnected] = useState(false);
+  const [lastPing, setLastPing] = useState<number | null>(null);
+
+  // Define fetch functions BEFORE useEffect
+  const fetchTeams = useCallback(async () => {
+    try {
+      clearCache();
+      const data = await teamService.getAllTeams(false);
+      setTeams(data);
+    } catch (error) {
+      console.error('Error fetching teams:', error);
+    }
+  }, []);
+
+  const fetchAvailableCount = useCallback(async () => {
+    try {
+      const data = await playerService.getAllPlayers(false);
+      const available = data.filter((p: Player) => p.status === 'available').length;
+      setAvailableCount(available);
+    } catch (error) {
+      console.error('Error fetching players:', error);
+    }
+  }, []);
+
+  const playSoldSound = useCallback(() => {
+    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjGG0fPTgjMGHm7A7+OZSA0PVarn7KhYFgpIn+DxwG8jBzGF0PLWhzUHImzB7uGWRgsRVKnn7KlZGAhLnuHyv28kBzOE0/LXiTYIJW2+7eCVRwwSU6vo7KpbGQlMneLxv3AlCDSE0/PYijcJJm7A7d+VRwwTVKzp7KpcGgpNnuLyv3ElCDWF0/PYjDgKKG6/7d6URwwUVKzq7KpdGwpNneLyv3ElCDWF0/LYjDgKKW+/7d6VRw0VVK3q7KpeGwtNnePyv3EmCTWF0vLYjDgLKm++7d+URg0WVazq7KpeHA1OoOPywHEmCjaF0fPXizgLK2+/7+CVRg4XVqzr7KpfHA1OoOPywHEmCzeF0fPXjDkLKnC/7+GWRg4YVq3r7KpgHA5PoOPzwHEmCzeF0fPXjTkMK3C/7+GVRw8ZVq3s7KpgHQ5PoOPzwHEnDDiF0PPXjToNLHC+7+GWRxAaV63s7KpgHg5QoOPzwHEnDDiG0PPYjToNLHC/7+GWRxAaV63t7KpgHg9QoOPzwHEnDDiG0fPXjToNLXC/8OGWRxAbV67t7KpgHw9QoOPzwHInDTiG0fPXjTsOLnC/8OGWRxEcV67t7KpgHw9RoOPzwHInDTmG0fPXjTsOLnC/8OGWRxEcWK7t7KtgHw9RoOPzwHInDTmG0fPYjTsOL3C/8OGXRxEdWK7u7KthHxBRn+PzwHIoDTmG0fPXjTsOL3C/8OGXRxEdWK7u7KthHxBRn+PzwHIoDTmG0vPYjTwPMHDA8OGXSBEEWK7u7KthIBBSn+P0wHIoDjmG0vPYjTwPMHDA8OGXSBEEWK7u7KthIBBSn+P0wHIoDjqG0vPYjTwPMHC/8OGXSBEEWK7v7KthIBBSn+P0wHIoDjqG0vPYjTwPMXC/8OGXSBIFWa/v7KxiIBFSn+P0wHIpDjqG0vPYjjwQMXC/8OGYSBIFW6/v7KxiIBFSn+P0wXIpDjuG0vPYjzwQMnC/8OGYSBIFWq/v7KxiIRFSoOT0wXIpDjuG0vPYjzwRM3C/8eGYSRMGWq/w7KxjIRFToOP0wXIqDzuG0/PZjzwRM3C/8eGYSRMGWq/w7KxjIRJToOP0wXIqDzuG0/PZjzwRNHC/8eGYSRMHWq/w7K1jIRJToOP0wnIqDzuH0/PZjzwRNHC/8eKYSRMHWq/w7K1jIRJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqA==');
+    audio.volume = 0.5;
+    audio.play().catch(e => console.log('Audio play failed:', e));
+  }, []);
 
   useEffect(() => {
     fetchTeams();
     fetchAvailableCount();
+    
+    // Request wake lock to keep screen on during auction
+    requestWakeLock();
 
     // Setup Socket.io connection for real-time updates with auctioneer isolation
     const socket = initializeSocket();
+    
+    // Update connection status
+    setIsConnected(socket.connected);
 
     socket.on('connect', () => {
       console.log('✓ Socket connected for auction page');
+      setIsConnected(true);
+    });
+    
+    // Handle heartbeat acknowledgment for latency tracking
+    socket.on('heartbeat_ack', (data: { latency: number }) => {
+      setLastPing(data.latency);
     });
 
     // OPTIMIZED: Debounce socket events to prevent fetch spam
@@ -40,12 +112,15 @@ const AuctionPage: React.FC = () => {
       if (teamFetchTimeout) clearTimeout(teamFetchTimeout);
       teamFetchTimeout = setTimeout(() => {
         console.log('🔄 Fetching teams (debounced)');
+        clearCache();
         fetchTeams();
       }, 300);
     };
 
     socket.on('playerUpdated', (updatedPlayer: Player) => {
       console.log('Player updated:', updatedPlayer);
+      // Update available count on player updates
+      fetchAvailableCount();
       // Debounce team fetch
       debouncedTeamFetch();
     });
@@ -59,43 +134,42 @@ const AuctionPage: React.FC = () => {
       );
     });
 
+    socket.on('teamCreated', (newTeam: Team) => {
+      setTeams(prevTeams => [...prevTeams, newTeam]);
+    });
+
+    socket.on('teamDeleted', (data: { teamId: string }) => {
+      setTeams(prevTeams => prevTeams.filter(t => t._id !== data.teamId));
+    });
+
     socket.on('disconnect', () => {
       console.log('Socket.io disconnected');
+      setIsConnected(false);
+      setLastPing(null);
     });
 
     return () => {
       if (teamFetchTimeout) clearTimeout(teamFetchTimeout);
-      socket.disconnect();
+      // Properly clean up ALL socket listeners
+      socket.off('connect');
+      socket.off('heartbeat_ack');
+      socket.off('playerUpdated');
+      socket.off('teamUpdated');
+      socket.off('teamCreated');
+      socket.off('teamDeleted');
+      socket.off('disconnect');
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchTeams, fetchAvailableCount]);
 
-  const playSoldSound = () => {
-    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjGG0fPTgjMGHm7A7+OZSA0PVarn7KhYFgpIn+DxwG8jBzGF0PLWhzUHImzB7uGWRgsRVKnn7KlZGAhLnuHyv28kBzOE0/LXiTYIJW2+7eCVRwwSU6vo7KpbGQlMneLxv3AlCDSE0/PYijcJJm7A7d+VRwwTVKzp7KpcGgpNnuLyv3ElCDWF0/PYjDgKKG6/7d6URwwUVKzq7KpdGwpNneLyv3ElCDWF0/LYjDgKKW+/7d6VRw0VVK3q7KpeGwtNnePyv3EmCTWF0vLYjDgLKm++7d+URg0WVazq7KpeHA1OoOPywHEmCjaF0fPXizgLK2+/7+CVRg4XVqzr7KpfHA1OoOPywHEmCzeF0fPXjDkLKnC/7+GWRg4YVq3r7KpgHA5PoOPzwHEmCzeF0fPXjTkMK3C/7+GVRw8ZVq3s7KpgHQ5PoOPzwHEnDDiF0PPXjToNLHC+7+GWRxAaV63s7KpgHg5QoOPzwHEnDDiG0PPYjToNLHC/7+GWRxAaV63t7KpgHg9QoOPzwHEnDDiG0fPXjToNLXC/8OGWRxAbV67t7KpgHw9QoOPzwHInDTiG0fPXjTsOLnC/8OGWRxEcV67t7KpgHw9RoOPzwHInDTmG0fPXjTsOLnC/8OGWRxEcWK7t7KtgHw9RoOPzwHInDTmG0fPYjTsOL3C/8OGXRxEdWK7u7KthHxBRn+PzwHIoDTmG0fPXjTsOL3C/8OGXRxEdWK7u7KthHxBRn+PzwHIoDTmG0vPYjTwPMHDA8OGXSBEEWK7u7KthIBBSn+P0wHIoDjmG0vPYjTwPMHDA8OGXSBEEWK7u7KthIBBSn+P0wHIoDjqG0vPYjTwPMHC/8OGXSBEEWK7v7KthIBBSn+P0wHIoDjqG0vPYjTwPMXC/8OGXSBIFWa/v7KxiIBFSn+P0wHIpDjqG0vPYjjwQMXC/8OGYSBIFW6/v7KxiIBFSn+P0wXIpDjuG0vPYjzwQMnC/8OGYSBIFWq/v7KxiIRFSoOT0wXIpDjuG0vPYjzwRM3C/8eGYSRMGWq/w7KxjIRFToOP0wXIqDzuG0/PZjzwRM3C/8eGYSRMGWq/w7KxjIRJToOP0wXIqDzuG0/PZjzwRNHC/8eGYSRMHWq/w7K1jIRJToOP0wnIqDzuH0/PZjzwRNHC/8eKYSRMHWq/w7K1jIRJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqDzuH0/PZkD0RNHDAseKYShMHWrDw7K1jIhJToOP0wnIqA==');
-    audio.volume = 0.5;
-    audio.play().catch(e => console.log('Audio play failed:', e));
-  };
+  // Memoize available teams (teams with enough budget)
+  const availableTeams = useMemo(() => {
+    return teams.filter((t: Team) => 
+      (t.remainingBudget ?? t.budget ?? 0) >= soldAmount && 
+      t.filledSlots < t.totalSlots
+    );
+  }, [teams, soldAmount]);
 
-  const fetchTeams = async () => {
-    try {
-      const data = await teamService.getAllTeams();
-      setTeams(data);
-    } catch (error) {
-      console.error('Error fetching teams:', error);
-    }
-  };
-
-  const fetchAvailableCount = async () => {
-    try {
-      const data = await playerService.getAllPlayers();
-      const available = data.filter((p: Player) => p.status === 'available').length;
-      setAvailableCount(available);
-    } catch (error) {
-      console.error('Error fetching players:', error);
-    }
-  };
-
-  const handleNextPlayer = async () => {
+  const handleNextPlayer = useCallback(() => {
     if (!hasAuctionStarted) {
       setHasAuctionStarted(true);
     }
@@ -104,11 +178,12 @@ const AuctionPage: React.FC = () => {
     setCurrentPlayer(null);
     setSoldAmount(0);
     setShowTeamModal(false);
-  };
+  }, [hasAuctionStarted]);
 
-  const handleSpinComplete = async () => {
+  const handleSpinComplete = useCallback(async () => {
     try {
-      const data = await playerService.getAllPlayers();
+      clearCache();
+      const data = await playerService.getAllPlayers(false);
       const availablePlayers = data.filter((p: Player) => p.status === 'available');
       
       if (availablePlayers.length === 0) {
@@ -123,22 +198,22 @@ const AuctionPage: React.FC = () => {
       setCurrentPlayer(selectedPlayer);
       setIsSpinning(false);
       setShowPlayer(true);
-      fetchAvailableCount();
+      setAvailableCount(availablePlayers.length - 1);
     } catch (error) {
       console.error('Error fetching random player:', error);
       setIsSpinning(false);
     }
-  };
+  }, []);
 
-  const handleSoldClick = () => {
+  const handleSoldClick = useCallback(() => {
     if (!soldAmount) {
       alert('Please enter sold amount first');
       return;
     }
     setShowTeamModal(true);
-  };
+  }, [soldAmount]);
 
-  const handleTeamSelected = async (teamId: string) => {
+  const handleTeamSelected = useCallback(async (teamId: string) => {
     if (!currentPlayer || !teamId || !soldAmount) {
       return;
     }
@@ -168,6 +243,9 @@ const AuctionPage: React.FC = () => {
       )
     );
 
+    // Update available count optimistically
+    setAvailableCount(prev => Math.max(0, prev - 1));
+
     // Clear current player immediately for better UX
     setShowPlayer(false);
     setCurrentPlayer(null);
@@ -179,6 +257,9 @@ const AuctionPage: React.FC = () => {
     }, 4000);
 
     try {
+      // Clear cache before API call
+      clearCache();
+      
       // Only call player update - it handles team budget deduction automatically
       await playerService.updatePlayer(currentPlayer._id, {
         status: 'sold',
@@ -188,34 +269,39 @@ const AuctionPage: React.FC = () => {
 
       // Fetch updates in background to sync with server (non-blocking)
       fetchTeams();
-      fetchAvailableCount();
     } catch (error) {
       console.error('Error assigning player:', error);
       // Revert optimistic update on error
+      clearCache();
       fetchTeams();
+      fetchAvailableCount();
       clearTimeout(celebrationTimer);
       setShowCelebration(false);
     }
-  };
+  }, [currentPlayer, soldAmount, teams, playSoldSound, fetchTeams, fetchAvailableCount]);
 
-  const handleMarkUnsold = async () => {
+  const handleMarkUnsold = useCallback(async () => {
     if (!currentPlayer) return;
 
     try {
+      clearCache();
       await playerService.updatePlayer(currentPlayer._id, {
         status: 'unsold'
       });
 
       setShowPlayer(false);
       setCurrentPlayer(null);
-      fetchAvailableCount();
+      // Don't decrement available count since player wasn't sold
     } catch (error) {
       console.error('Error marking player unsold:', error);
     }
-  };
+  }, [currentPlayer]);
 
   return (
     <>
+      {/* Connection Status Indicator - Shows LIVE/OFFLINE status during auction */}
+      <ConnectionStatus isConnected={isConnected} lastPing={lastPing} />
+      
       <div className="h-full flex flex-col px-2 sm:px-4 py-2 sm:py-3 overflow-hidden" style={{
         background: 'linear-gradient(160deg, #000000 0%, #0a0a0a 25%, #1a1a1a 50%, #0f172a 75%, #1a1a1a 100%)',
         backgroundAttachment: 'fixed'

@@ -9,7 +9,7 @@ import { playerService, clearCache } from '../services/api';
 import { initializeSocket } from '../services/socket';
 
 const PlayersPage: React.FC = () => {
-  const { isAuctioneer, user } = useAuth();
+  const { isAuctioneer, user, refreshUser } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'available' | 'sold' | 'unsold'>('all');
@@ -17,10 +17,10 @@ const PlayersPage: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
 
-  const fetchPlayers = useCallback(async () => {
+  const fetchPlayers = useCallback(async (bypassCache = false) => {
     setLoading(true);
     try {
-      const data = await playerService.getAllPlayers(true); // Use cache
+      const data = await playerService.getAllPlayers(!bypassCache); // Use cache unless bypassing
       setPlayers(data);
       
       // Debug: Log first player's photo URL to check conversion
@@ -42,55 +42,77 @@ const PlayersPage: React.FC = () => {
   // Socket.IO listener for real-time player updates with debouncing
   useEffect(() => {
     const socket = initializeSocket();
-    let refreshTimeout: NodeJS.Timeout | null = null;
+    let isComponentMounted = true;
 
     console.log('🔌 PlayersPage: Setting up socket listeners', socket.id);
     console.log('🔌 Socket connected:', socket.connected);
 
     // Test socket connection
-    socket.on('connect', () => {
+    const handleConnect = () => {
       console.log('✅ Socket connected on PlayersPage:', socket.id);
-    });
-
-    // Debounced refresh function to prevent multiple rapid updates
-    const debouncedRefresh = () => {
-      console.log('⏱️ Debounced refresh triggered');
-      if (refreshTimeout) clearTimeout(refreshTimeout);
-      refreshTimeout = setTimeout(() => {
-        console.log('🔄 Refreshing players NOW...');
+      // Re-fetch players on reconnect to ensure sync
+      if (isComponentMounted) {
         clearCache();
-        fetchPlayers();
-      }, 300); // 300ms debounce
+        fetchPlayers(true);
+      }
     };
 
-    // Listen for playerAdded event
-    socket.on('playerAdded', (newPlayer: Player) => {
+    socket.on('connect', handleConnect);
+
+    // Listen for playerAdded event - directly add to state for immediate update
+    const handlePlayerAdded = (newPlayer: Player) => {
+      if (!isComponentMounted) return;
       console.log('✅✅✅ PLAYER ADDED EVENT RECEIVED:', newPlayer.name, newPlayer);
-      debouncedRefresh();
-    });
+      // Immediately add to local state for instant UI update
+      setPlayers(prevPlayers => {
+        // Check if player already exists to avoid duplicates
+        const exists = prevPlayers.some(p => p._id === newPlayer._id);
+        if (exists) {
+          console.log('⚠️ Player already exists, updating instead');
+          return prevPlayers.map(p => p._id === newPlayer._id ? newPlayer : p);
+        }
+        console.log('➕ Adding new player to list');
+        return [...prevPlayers, newPlayer];
+      });
+      // Refresh user to update limits
+      refreshUser();
+    };
 
     // Listen for playerUpdated event
-    socket.on('playerUpdated', (updatedPlayer: Player) => {
+    const handlePlayerUpdated = (updatedPlayer: Player) => {
+      if (!isComponentMounted) return;
       console.log('✅ Player updated via socket:', updatedPlayer.name);
-      debouncedRefresh();
-    });
+      // Immediately update in local state
+      setPlayers(prevPlayers => 
+        prevPlayers.map(p => p._id === updatedPlayer._id ? updatedPlayer : p)
+      );
+    };
 
     // Listen for playerDeleted event
-    socket.on('playerDeleted', (deletedPlayer: Player) => {
+    const handlePlayerDeleted = (deletedPlayer: Player) => {
+      if (!isComponentMounted) return;
       console.log('✅ Player deleted via socket:', deletedPlayer._id);
-      debouncedRefresh();
-    });
+      // Immediately remove from local state
+      const deletedId = typeof deletedPlayer === 'object' ? (deletedPlayer._id || (deletedPlayer as any).playerId) : deletedPlayer;
+      setPlayers(prevPlayers => prevPlayers.filter(p => p._id !== deletedId));
+      // Refresh user to update limits
+      refreshUser();
+    };
+
+    socket.on('playerAdded', handlePlayerAdded);
+    socket.on('playerUpdated', handlePlayerUpdated);
+    socket.on('playerDeleted', handlePlayerDeleted);
 
     // Cleanup on unmount
     return () => {
       console.log('🔌 PlayersPage: Cleaning up socket listeners');
-      if (refreshTimeout) clearTimeout(refreshTimeout);
-      socket.off('connect');
-      socket.off('playerAdded');
-      socket.off('playerUpdated');
-      socket.off('playerDeleted');
+      isComponentMounted = false;
+      socket.off('connect', handleConnect);
+      socket.off('playerAdded', handlePlayerAdded);
+      socket.off('playerUpdated', handlePlayerUpdated);
+      socket.off('playerDeleted', handlePlayerDeleted);
     };
-  }, [fetchPlayers]);
+  }, [fetchPlayers, refreshUser]);
 
   const handleDeletePlayer = useCallback(async (playerId: string) => {
     if (!window.confirm('Are you sure you want to delete this player? This action cannot be undone.')) {
@@ -98,15 +120,21 @@ const PlayersPage: React.FC = () => {
     }
     try {
       const token = localStorage.getItem('token');
+      // Optimistic update - remove from UI immediately
+      setPlayers(prevPlayers => prevPlayers.filter(p => p._id !== playerId));
+      
       await axios.delete(`${BACKEND_URL}/api/players/${playerId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       clearCache(); // Clear cache after deletion
-      fetchPlayers();
+      // No need to fetchPlayers - socket event will trigger refresh if needed
     } catch (error: any) {
       console.error('Error deleting player:', error);
       const errorMessage = error.response?.data?.error || 'Failed to delete player';
       alert(errorMessage);
+      // Revert on error
+      clearCache();
+      fetchPlayers(true);
     }
   }, [BACKEND_URL, fetchPlayers]);
 
@@ -175,11 +203,13 @@ const PlayersPage: React.FC = () => {
             <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
               <button
                 onClick={() => {
-                  const isLimitReached = user?.limits?.maxPlayers && user?.usage?.totalPlayers 
-                    ? user.usage.totalPlayers >= user.limits.maxPlayers 
-                    : false;
+                  // Use actual player count instead of cached user usage
+                  const currentPlayerCount = players.length;
+                  const maxPlayers = user?.limits?.maxPlayers;
+                  const isLimitReached = maxPlayers && currentPlayerCount >= maxPlayers;
+                  
                   if (isLimitReached) {
-                    alert(`⚠️ Player Limit Reached!\n\nYou have reached your maximum player limit of ${user?.limits?.maxPlayers}.\n\nCurrent: ${user?.usage?.totalPlayers} / ${user?.limits?.maxPlayers}\n\nPlease contact your administrator to increase your limit.`);
+                    alert(`⚠️ Player Limit Reached!\n\nYou have reached your maximum player limit of ${maxPlayers}.\n\nCurrent: ${currentPlayerCount} / ${maxPlayers}\n\nPlease contact your administrator to increase your limit.`);
                     return;
                   }
                   setShowAddModal(true);
@@ -336,101 +366,162 @@ const PlayersPage: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 md:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 md:p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredPlayers.map((player) => {
               const config = statusConfig[player.status as keyof typeof statusConfig];
               
               return (
                 <div
                   key={player._id}
-                  className="group relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-3 sm:p-4 shadow-lg border border-gray-700/50 hover:border-indigo-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/10 hover:scale-[1.02]"
+                  className="group relative"
                 >
-                  {/* Status Badge - Top Right */}
-                  <div className={`absolute top-2 sm:top-3 right-2 sm:right-3 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-bold ${config.bg} ${config.border} ${config.text} border flex items-center gap-1`}>
-                    <span>{config.icon}</span>
-                    <span className="uppercase">{player.status}</span>
-                  </div>
-
-                  {/* Player Photo */}
-                  <div className="flex justify-center mb-2 sm:mb-3">
-                    {player.photoUrl && player.photoUrl.trim() !== '' ? (
-                      <img 
-                        src={player.photoUrl.startsWith('http') ? player.photoUrl : `${BACKEND_URL}${player.photoUrl}`} 
-                        alt={player.name}
-                        crossOrigin="anonymous"
-                        referrerPolicy="no-referrer"
-                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-4 border-gray-700 group-hover:border-indigo-500 transition-all duration-300 group-hover:scale-110"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          target.parentElement!.innerHTML = `<div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-2xl sm:text-3xl font-black text-white border-4 border-gray-700 group-hover:border-indigo-500 transition-all duration-300 group-hover:scale-110">${player.name.charAt(0)}</div>`;
-                        }}
-                      />
-                    ) : (
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-2xl sm:text-3xl font-black text-white border-4 border-gray-700 group-hover:border-indigo-500 transition-all duration-300 group-hover:scale-110">
-                        {player.name.charAt(0)}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Player Info */}
-                  <div className="text-center mb-2 sm:mb-3">
-                    <h3 className="text-base sm:text-lg font-black text-white truncate group-hover:text-indigo-400 transition-colors">
-                      {player.name}
-                    </h3>
-                    <p className="text-[10px] sm:text-xs text-gray-500 font-mono">{player.regNo}</p>
-                  </div>
-
-                  {/* Player Details */}
-                  <div className="space-y-1.5 sm:space-y-2">
-                    <div className="flex items-center justify-between bg-gray-900/50 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-700/30">
-                      <span className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">
-                        Class
-                      </span>
-                      <span className="text-[10px] sm:text-xs font-bold text-white truncate ml-2">{player.class}</span>
-                    </div>
+                  {/* Compact Premium Card */}
+                  <div className="relative overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.02]"
+                    style={{
+                      background: 'linear-gradient(165deg, #0a0a0a 0%, #141414 40%, #0d0d0d 100%)',
+                      border: '1px solid rgba(212, 175, 55, 0.12)',
+                      boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.8)'
+                    }}
+                  >
+                    {/* Ambient Glow Effect */}
+                    <div className="absolute -top-16 -right-16 w-32 h-32 rounded-full opacity-0 group-hover:opacity-30 blur-2xl transition-all duration-500"
+                      style={{ background: 'radial-gradient(circle, rgba(212, 175, 55, 0.5) 0%, transparent 70%)' }}
+                    />
                     
-                    <div className="flex items-center justify-between bg-gray-900/50 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-700/30">
-                      <span className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">
-                        Position
-                      </span>
-                      <span className="text-[10px] sm:text-xs font-bold text-white truncate ml-2">{player.position}</span>
+                    {/* Top Accent Line */}
+                    <div className="absolute top-0 left-0 right-0 h-[1px]"
+                      style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(212, 175, 55, 0.4) 50%, transparent 100%)' }}
+                    />
+
+                    {/* Status Badge - Compact */}
+                    <div className="absolute top-2.5 right-2.5 z-10">
+                      <div className="px-2 py-0.5 rounded-md text-[9px] font-semibold uppercase tracking-wide flex items-center gap-1"
+                        style={{
+                          background: player.status === 'sold' 
+                            ? 'rgba(16, 185, 129, 0.15)' 
+                            : player.status === 'unsold' 
+                            ? 'rgba(239, 68, 68, 0.15)' 
+                            : 'rgba(212, 175, 55, 0.15)',
+                          border: `1px solid ${player.status === 'sold' ? 'rgba(16, 185, 129, 0.3)' : player.status === 'unsold' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(212, 175, 55, 0.3)'}`,
+                          color: player.status === 'sold' ? '#10b981' : player.status === 'unsold' ? '#ef4444' : '#D4AF37'
+                        }}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'currentColor' }} />
+                        {player.status}
+                      </div>
                     </div>
 
-                    {player.soldAmount && (
-                      <div className="flex items-center justify-between bg-gradient-to-r from-green-600/10 to-emerald-600/10 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 border border-green-600/30">
-                        <span className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider">
-                          Sold
-                        </span>
-                        <span className="text-xs sm:text-sm font-black text-green-400">₹{player.soldAmount.toLocaleString()}</span>
+                    {/* Player Photo Section */}
+                    <div className="relative pt-4 pb-2 flex justify-center">
+                      <div className="relative">
+                        {player.photoUrl && player.photoUrl.trim() !== '' ? (
+                          <img 
+                            src={player.photoUrl.startsWith('http') ? player.photoUrl : `${BACKEND_URL}${player.photoUrl}`} 
+                            alt={player.name}
+                            crossOrigin="anonymous"
+                            referrerPolicy="no-referrer"
+                            className="w-16 h-16 rounded-lg object-cover transition-all duration-300 group-hover:scale-105"
+                            style={{
+                              border: '1.5px solid rgba(212, 175, 55, 0.2)',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
+                            }}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const parent = target.parentElement;
+                              if (parent) {
+                                const div = document.createElement('div');
+                                div.className = 'w-16 h-16 rounded-lg flex items-center justify-center text-2xl font-extralight';
+                                div.style.cssText = 'background: linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%); border: 1.5px solid rgba(212, 175, 55, 0.2); color: #D4AF37;';
+                                div.textContent = player.name.charAt(0);
+                                parent.appendChild(div);
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded-lg flex items-center justify-center text-2xl font-extralight transition-all duration-300 group-hover:scale-105"
+                            style={{
+                              background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%)',
+                              border: '1.5px solid rgba(212, 175, 55, 0.2)',
+                              color: '#D4AF37',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
+                            }}
+                          >
+                            {player.name.charAt(0)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Player Info */}
+                    <div className="text-center px-3 pb-2">
+                      <h3 className="text-base font-semibold tracking-tight text-white truncate group-hover:text-amber-50 transition-colors">
+                        {player.name}
+                      </h3>
+                      <p className="text-[10px] text-gray-500 font-medium tracking-wide">{player.regNo}</p>
+                    </div>
+
+                    {/* Player Details */}
+                    <div className="px-3 pb-2 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-gray-500">{player.class}</span>
+                        <span className="text-gray-400">{player.position}</span>
+                      </div>
+
+                      {player.soldAmount && (
+                        <div className="flex items-center justify-center rounded-md px-2 py-1.5"
+                          style={{
+                            background: 'rgba(16, 185, 129, 0.08)',
+                            border: '1px solid rgba(16, 185, 129, 0.15)'
+                          }}
+                        >
+                          <span className="text-sm font-semibold text-emerald-400">
+                            ₹{player.soldAmount >= 100000 ? `${(player.soldAmount / 100000).toFixed(1)}L` : `${(player.soldAmount / 1000).toFixed(0)}K`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action Buttons - Only for Auctioneers */}
+                    {isAuctioneer && (
+                      <div className="px-3 pb-3 flex gap-2">
+                        <button
+                          onClick={() => setEditingPlayer(player)}
+                          className="flex-1 py-2 rounded-lg font-medium text-xs transition-all duration-200 flex items-center justify-center gap-1.5"
+                          style={{
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                            color: '#60a5fa'
+                          }}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeletePlayer(player._id)}
+                          className="flex-1 py-2 rounded-lg font-medium text-xs transition-all duration-200 flex items-center justify-center gap-1.5"
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            color: '#f87171'
+                          }}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          Delete
+                        </button>
                       </div>
                     )}
-                  </div>
 
-                  {/* Action Buttons - Only for Auctioneers */}
-                  {isAuctioneer && (
-                    <div className="mt-2 sm:mt-3 flex gap-1.5 sm:gap-2">
-                      <button
-                        onClick={() => setEditingPlayer(player)}
-                        className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-lg font-semibold text-white text-xs sm:text-sm transition-all duration-300 hover:scale-105 shadow-lg flex items-center justify-center gap-1 sm:gap-2"
-                      >
-                        <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeletePlayer(player._id)}
-                        className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 rounded-lg font-semibold text-white text-xs sm:text-sm transition-all duration-300 hover:scale-105 shadow-lg flex items-center justify-center gap-1 sm:gap-2"
-                      >
-                        <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Delete
-                      </button>
-                    </div>
-                  )}
+                    {/* Bottom Accent */}
+                    <div className="absolute bottom-0 left-0 right-0 h-[1px]"
+                      style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(212, 175, 55, 0.15) 50%, transparent 100%)' }}
+                    />
+                  </div>
                 </div>
               );
             })}
@@ -445,7 +536,7 @@ const PlayersPage: React.FC = () => {
           onClose={() => setEditingPlayer(null)}
           onSuccess={() => {
             clearCache(); // Clear cache before fetching fresh data
-            fetchPlayers();
+            fetchPlayers(true); // BYPASS CACHE
             setEditingPlayer(null);
           }}
         />
@@ -457,8 +548,10 @@ const PlayersPage: React.FC = () => {
           player={null}
           onClose={() => setShowAddModal(false)}
           onSuccess={() => {
+            console.log('✅ Add player success callback - refreshing list');
             clearCache(); // Clear cache before fetching fresh data
-            fetchPlayers();
+            fetchPlayers(true); // BYPASS CACHE - force refresh
+            refreshUser(); // Update user limits
             setShowAddModal(false);
           }}
         />

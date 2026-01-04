@@ -6,7 +6,13 @@ const http = require('http');
 const { Server } = require('socket.io');
 const compression = require('compression');
 
+// Enable mongoose query caching and lean by default for reads
+mongoose.set('strictQuery', true);
+
 const app = express();
+
+// Trust proxy for rate limiting behind reverse proxies
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // CORS Configuration - Allow production frontend
@@ -21,7 +27,7 @@ const allowedOrigins = [
   'https://neoauction-*.vercel.app' // Allow Vercel preview deployments
 ].filter(Boolean); // Remove undefined values
 
-// Socket.io configuration
+// Socket.io configuration with extended timeouts for long auction sessions (1+ hour idle support)
 const io = new Server(server, {
   cors: {
     origin: function(origin, callback) {
@@ -42,14 +48,39 @@ const io = new Server(server, {
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
   },
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  transports: ['websocket', 'polling']
+  // Extended timeouts for 1+ hour idle auction sessions
+  pingTimeout: 300000, // 5 minutes - wait this long before considering connection dead
+  pingInterval: 20000, // 20 seconds - send ping every 20s to keep connection alive
+  connectTimeout: 30000, // 30 seconds connection timeout
+  transports: ['websocket', 'polling'],
+  allowUpgrades: true,
+  perMessageDeflate: true, // Compress messages for better performance
+  maxHttpBufferSize: 1e6 // 1MB max message size
 });
 
 // Socket.io connection handling with auctioneer rooms
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
+  
+  // Track last activity for this socket
+  let lastActivity = Date.now();
+
+  // Handle heartbeat from client to keep connection alive
+  socket.on('heartbeat', (data) => {
+    lastActivity = Date.now();
+    // Respond with server timestamp for latency tracking
+    socket.emit('heartbeat_ack', { 
+      serverTime: Date.now(), 
+      clientTime: data.timestamp,
+      latency: Date.now() - data.timestamp 
+    });
+  });
+
+  // Handle ping from client
+  socket.on('ping', () => {
+    lastActivity = Date.now();
+    socket.emit('pong');
+  });
 
   // Join auctioneer-specific room when authenticated
   socket.on('joinAuctioneer', (auctioneerId) => {
@@ -57,10 +88,14 @@ io.on('connection', (socket) => {
     const roomName = `auctioneer_${auctioneerId}`;
     socket.join(roomName);
     console.log(`✅ Socket ${socket.id} successfully joined room: ${roomName}`);
+    lastActivity = Date.now();
     
     // Verify the join worked
     const room = io.sockets.adapter.rooms.get(roomName);
     console.log(`📊 Room ${roomName} now has ${room ? room.size : 0} client(s)`);
+    
+    // Send confirmation to client
+    socket.emit('roomJoined', { room: roomName, socketId: socket.id });
   });
 
   // Leave auctioneer room
@@ -116,15 +151,72 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 }));
 
+// Simple in-memory rate limiter (no external dependencies)
+const rateLimitStore = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX = 100; // 100 requests per minute
+
+const rateLimiter = (req, res, next) => {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  
+  // Clean old entries
+  if (rateLimitStore.size > 10000) {
+    for (const [key, value] of rateLimitStore) {
+      if (now - value.startTime > RATE_LIMIT_WINDOW) {
+        rateLimitStore.delete(key);
+      }
+    }
+  }
+  
+  const record = rateLimitStore.get(ip);
+  
+  if (!record) {
+    rateLimitStore.set(ip, { count: 1, startTime: now });
+    return next();
+  }
+  
+  if (now - record.startTime > RATE_LIMIT_WINDOW) {
+    rateLimitStore.set(ip, { count: 1, startTime: now });
+    return next();
+  }
+  
+  if (record.count >= RATE_LIMIT_MAX) {
+    return res.status(429).json({ 
+      error: 'Too many requests. Please try again later.',
+      retryAfter: Math.ceil((record.startTime + RATE_LIMIT_WINDOW - now) / 1000)
+    });
+  }
+  
+  record.count++;
+  next();
+};
+
+// Apply rate limiting to API routes only
+app.use('/api', rateLimiter);
+
 // Gzip compression for responses (faster loading)
 app.use(compression({
   level: 6,
-  threshold: 1024,
+  threshold: 512, // Compress responses > 512 bytes
   filter: (req, res) => {
     if (req.headers['x-no-compression']) return false;
     return compression.filter(req, res);
   }
 }));
+
+// Add response time tracking header
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    // Log slow requests (> 1 second)
+    if (duration > 1000) {
+      console.warn(`⚠️ Slow request: ${req.method} ${req.path} - ${duration}ms`);
+    }
+  });
+  next();
+});
 
 // Parse JSON with size limit
 app.use(express.json({ limit: '10mb' }));
@@ -134,15 +226,53 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
 
-// MongoDB Connection with optimized settings
+// MongoDB Connection with optimized settings for long auction sessions (1+ hour idle support)
 const path = require('path');
 mongoose.connect(process.env.MONGODB_URI, {
-  maxPoolSize: 10,
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
+  maxPoolSize: 20, // Increased for better concurrency
+  minPoolSize: 5, // Keep minimum connections ready
+  serverSelectionTimeoutMS: 10000, // Extended for reliability
+  socketTimeoutMS: 3600000, // 1 hour - extended for long idle sessions
+  maxIdleTimeMS: 3600000, // 1 hour - keep connections alive during long auctions
+  compressors: ['zlib'], // Enable compression for MongoDB wire protocol
+  retryWrites: true,
+  retryReads: true,
+  heartbeatFrequencyMS: 10000, // Check server health every 10 seconds
 })
-.then(() => console.log('✅ Connected to MongoDB Atlas'))
+.then(() => {
+  console.log('✅ Connected to MongoDB Atlas');
+  
+  // Start MongoDB keep-alive ping every 30 seconds (more aggressive for long sessions)
+  setInterval(async () => {
+    try {
+      if (mongoose.connection.readyState === 1) {
+        await mongoose.connection.db.admin().ping();
+        // Silent ping - only log errors
+      }
+    } catch (err) {
+      console.warn('⚠️ MongoDB keep-alive ping failed:', err.message);
+    }
+  }, 30000); // Every 30 seconds
+  
+  // Initial ping
+  mongoose.connection.db.admin().ping().then(() => {
+    console.log('✅ MongoDB initial ping successful');
+  });
+})
 .catch((err) => console.error('❌ MongoDB connection error:', err));
+
+// Handle MongoDB connection events
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('MongoDB disconnected. Attempting to reconnect...');
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('✅ MongoDB reconnected');
+});
 
 // Make io accessible to routes
 app.set('io', io);

@@ -35,8 +35,10 @@ exports.protect = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    // Get user from token
-    req.user = await User.findById(decoded.id);
+    // Get user from token - OPTIMIZED: Only select needed fields
+    req.user = await User.findById(decoded.id)
+      .select('_id name email role isActive accessExpiry limits usage registrationToken')
+      .lean();
 
     if (!req.user) {
       return res.status(401).json({

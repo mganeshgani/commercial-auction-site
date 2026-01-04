@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import authService, { User, AuthResponse } from '../services/authService';
 import { connectSocket } from '../services/socket';
 
@@ -10,6 +10,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateUser: (name: string, email: string) => Promise<AuthResponse>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<AuthResponse>;
+  refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
   isAuctioneer: boolean;
@@ -33,6 +34,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Refresh user data from server (includes updated limits/usage)
+  const refreshUser = useCallback(async () => {
+    try {
+      if (authService.isAuthenticated()) {
+        const response = await authService.getMe();
+        if (response.success && response.data) {
+          setUser(response.data.user);
+          // Update localStorage with fresh data
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
+    }
+  }, []);
+
   // Load user on mount
   useEffect(() => {
     loadUser();
@@ -44,6 +61,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const response = await authService.getMe();
         if (response.success && response.data) {
           setUser(response.data.user);
+          // Update localStorage with fresh data including limits/usage
+          localStorage.setItem('user', JSON.stringify(response.data.user));
           // Connect socket after user is loaded
           connectSocket();
         } else {
@@ -65,6 +84,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const response = await authService.login(email, password);
     if (response.success && response.data) {
       setUser(response.data.user);
+      // Store user with full data including limits/usage
+      localStorage.setItem('user', JSON.stringify(response.data.user));
       // Connect socket after login
       connectSocket();
     }
@@ -79,6 +100,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const response = await authService.register(name, email, password);
     if (response.success && response.data) {
       setUser(response.data.user);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
     }
     return response;
   };
@@ -111,6 +133,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     updateUser,
     updatePassword,
+    refreshUser,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',
     isAuctioneer: user?.role === 'admin' || user?.role === 'auctioneer',

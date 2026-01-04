@@ -198,21 +198,26 @@ exports.deleteTeam = async (req, res) => {
   }
 };
 
-// Get all teams
+// Get all teams - OPTIMIZED
 exports.getAllTeams = async (req, res) => {
   try {
     // OPTIMIZED: Only populate necessary fields, not full player objects
     // Filter by logged-in auctioneer
     const teams = await Team.find({ auctioneer: req.user._id })
-      .populate('players', 'name regNo class position soldAmount') // Only specific fields
+      .populate('players', 'name regNo class position soldAmount photoUrl') // Only specific fields
+      .sort({ name: 1 }) // Sort alphabetically
       .lean(); // Return plain objects (faster)
+    
+    // Set cache headers for better performance
+    res.set('Cache-Control', 'private, max-age=5');
     res.json(teams);
   } catch (error) {
+    console.error('Error fetching teams:', error);
     res.status(500).json({ error: 'Error fetching teams' });
   }
 };
 
-// Get team by ID
+// Get team by ID - OPTIMIZED
 exports.getTeamById = async (req, res) => {
   try {
     const { teamId } = req.params;
@@ -221,30 +226,33 @@ exports.getTeamById = async (req, res) => {
       _id: teamId,
       auctioneer: req.user._id 
     })
-      .populate('players', 'name regNo class position soldAmount')
+      .populate('players', 'name regNo class position soldAmount photoUrl')
       .lean();
     
     if (!team) {
       return res.status(404).json({ error: 'Team not found' });
     }
 
+    res.set('Cache-Control', 'private, max-age=5');
     res.json(team);
   } catch (error) {
+    console.error('Error fetching team:', error);
     res.status(500).json({ error: 'Error fetching team' });
   }
 };
 
-// Get final results
+// Get final results - OPTIMIZED
 exports.getFinalResults = async (req, res) => {
   try {
     // Filter by logged-in auctioneer
     const teams = await Team.find({ auctioneer: req.user._id })
-      .populate('players', 'name regNo class position soldAmount')
+      .populate('players', 'name regNo class position soldAmount photoUrl')
       .sort('name')
       .lean();
 
     const results = teams.map(team => ({
       teamName: team.name,
+      logoUrl: team.logoUrl,
       totalPlayers: team.filledSlots,
       totalSlots: team.totalSlots,
       budget: team.budget,
@@ -254,17 +262,20 @@ exports.getFinalResults = async (req, res) => {
         regNo: player.regNo,
         class: player.class,
         position: player.position,
-        soldAmount: player.soldAmount
+        soldAmount: player.soldAmount,
+        photoUrl: player.photoUrl
       }))
     }));
 
+    res.set('Cache-Control', 'private, max-age=10');
     res.json(results);
   } catch (error) {
+    console.error('Error fetching final results:', error);
     res.status(500).json({ error: 'Error fetching final results' });
   }
 };
 
-// Delete all teams (for auction reset)
+// Delete all teams (for auction reset) - OPTIMIZED
 exports.deleteAllTeams = async (req, res) => {
   try {
     // Only delete teams belonging to the logged-in auctioneer
@@ -274,6 +285,7 @@ exports.deleteAllTeams = async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       io.to(`auctioneer_${req.user._id}`).emit('dataReset');
+      io.to(`auctioneer_${req.user._id}`).emit('teamsCleared');
     }
     
     res.json({ 
@@ -281,6 +293,7 @@ exports.deleteAllTeams = async (req, res) => {
       deletedCount: result.deletedCount 
     });
   } catch (error) {
+    console.error('Error deleting all teams:', error);
     res.status(500).json({ error: 'Error deleting all teams' });
   }
 };

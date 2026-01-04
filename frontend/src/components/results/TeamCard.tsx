@@ -27,139 +27,148 @@ const TeamCard = React.memo<TeamCardProps>(({
   getPositionColor,
   getPositionIcon
 }) => {
-  // Premium gradient colors for teams
-  const teamGradients = [
-    'from-violet-600/20 via-purple-600/20 to-fuchsia-600/20',
-    'from-blue-600/20 via-cyan-600/20 to-teal-600/20',
-    'from-emerald-600/20 via-green-600/20 to-lime-600/20',
-    'from-amber-600/20 via-yellow-600/20 to-orange-600/20',
-    'from-rose-600/20 via-pink-600/20 to-red-600/20',
-    'from-indigo-600/20 via-blue-600/20 to-sky-600/20',
-  ];
-  const teamBorderColors = [
-    'border-violet-500/40 hover:border-violet-400/60',
-    'border-blue-500/40 hover:border-blue-400/60',
-    'border-emerald-500/40 hover:border-emerald-400/60',
-    'border-amber-500/40 hover:border-amber-400/60',
-    'border-rose-500/40 hover:border-rose-400/60',
-    'border-indigo-500/40 hover:border-indigo-400/60',
-  ];
-  const gradientClass = teamGradients[index % teamGradients.length];
-  const borderClass = teamBorderColors[index % teamBorderColors.length];
-
+  const budgetPercent = parseFloat(budgetUsedPercentage);
+  
   return (
     <div
       onClick={onClick}
-      className={`group w-full relative overflow-hidden bg-gradient-to-br ${gradientClass} backdrop-blur-sm rounded-xl border ${borderClass} transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-white/10 cursor-pointer`}
+      className="group relative cursor-pointer"
       style={{ maxHeight: 'calc(100vh - 180px)' }}
     >
-      {/* Animated Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-      
-      {/* Card Content - Ultra Compact */}
-      <div className="relative z-10 p-3 flex flex-col h-full">
-        {/* Compact Team Header */}
-        <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-black tracking-tight" style={{
-                background: 'linear-gradient(135deg, #FFFFFF 0%, #F0D770 50%, #D4AF37 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text'
-              }}>{team.name}</h2>
-              <div className="flex-shrink-0 w-6 h-6 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-[10px] font-black text-white shadow-lg">
+      {/* Luxury Card Container */}
+      <div className="relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-[1.02]"
+        style={{
+          background: 'linear-gradient(145deg, #0c0c0c 0%, #1a1a1a 50%, #0f0f0f 100%)',
+          border: '1px solid rgba(212, 175, 55, 0.15)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255,255,255,0.03), inset 0 1px 0 rgba(255,255,255,0.05)'
+        }}
+      >
+        {/* Subtle Ambient Glow */}
+        <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full opacity-20 blur-3xl transition-opacity duration-500 group-hover:opacity-40"
+          style={{ background: 'radial-gradient(circle, rgba(212, 175, 55, 0.4) 0%, transparent 70%)' }}
+        />
+        
+        {/* Top Accent Line */}
+        <div className="absolute top-0 left-0 right-0 h-[2px]"
+          style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(212, 175, 55, 0.6) 50%, transparent 100%)' }}
+        />
+
+        {/* Header Section */}
+        <div className="relative p-4 pb-3">
+          <div className="flex items-center gap-3">
+            {/* Team Logo/Initial */}
+            <div className="relative">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%)',
+                  border: '1px solid rgba(212, 175, 55, 0.25)',
+                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)'
+                }}
+              >
+                {team.logoUrl ? (
+                  <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xl font-light tracking-tight" style={{ color: '#D4AF37' }}>
+                    {team.name.charAt(0)}
+                  </span>
+                )}
+              </div>
+              {/* Rank Badge */}
+              <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                style={{
+                  background: 'linear-gradient(135deg, #D4AF37 0%, #B8860B 100%)',
+                  color: '#000',
+                  boxShadow: '0 2px 8px rgba(212, 175, 55, 0.4)'
+                }}
+              >
                 {index + 1}
               </div>
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] mt-1">
-              <span className="bg-slate-800/60 px-1.5 py-0.5 rounded text-slate-300 font-semibold">
-                {actualFilledSlots}/{team.totalSlots}
-              </span>
-              <span className="bg-slate-800/60 px-1.5 py-0.5 rounded text-slate-300 font-semibold">
-                {budgetUsedPercentage}%
-              </span>
+
+            {/* Team Name */}
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-semibold tracking-tight truncate text-white group-hover:text-amber-100 transition-colors">
+                {team.name}
+              </h2>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-[11px] text-gray-500 font-medium">
+                  {actualFilledSlots}/{team.totalSlots} Players
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Compact Budget Info */}
-        <div className="grid grid-cols-2 gap-1.5 mb-2">
-          <div className="bg-slate-800/60 backdrop-blur-sm rounded-lg p-1.5">
-            <p className="text-[10px] text-slate-400">Spent</p>
-            <p className="text-sm font-black bg-gradient-to-r from-amber-400 to-yellow-400 bg-clip-text text-transparent">
-              ₹{(actualSpent / 1000).toFixed(1)}K
-            </p>
-          </div>
-          <div className="bg-slate-800/60 backdrop-blur-sm rounded-lg p-1.5">
-            <p className="text-[10px] text-slate-400">Left</p>
-            <p className={`text-sm font-black ${
-              actualRemaining >= (team.budget || 0) * 0.3 ? 'text-emerald-400' : 
-              actualRemaining >= (team.budget || 0) * 0.1 ? 'text-amber-400' : 
-              'text-rose-400'
-            }`}>
-              ₹{(actualRemaining / 1000).toFixed(1)}K
-            </p>
-          </div>
-        </div>
+        {/* Divider */}
+        <div className="mx-4 h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)' }} />
 
-        {/* Compact Progress Bar */}
-        <div className="mb-2">
-          <div className="h-1.5 bg-slate-800/60 rounded-full overflow-hidden">
-            <div 
-              className={`h-full rounded-full transition-all duration-1000 ${
-                parseFloat(budgetUsedPercentage) >= 90 ? 'bg-gradient-to-r from-rose-500 to-red-600' :
-                parseFloat(budgetUsedPercentage) >= 70 ? 'bg-gradient-to-r from-amber-500 to-orange-600' :
-                'bg-gradient-to-r from-emerald-500 to-teal-600'
-              }`}
-              style={{ width: `${budgetUsedPercentage}%` }}
-            ></div>
+        {/* Stats Section */}
+        <div className="p-4 pt-3">
+          {/* Budget Display */}
+          <div className="flex items-baseline justify-between mb-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-0.5">Spent</p>
+              <p className="text-2xl font-light tracking-tight" style={{ color: '#D4AF37' }}>
+                ₹{actualSpent >= 100000 ? `${(actualSpent / 100000).toFixed(1)}L` : `${(actualSpent / 1000).toFixed(0)}K`}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-0.5">Remaining</p>
+              <p className={`text-lg font-medium ${actualRemaining < (team.budget || 0) * 0.2 ? 'text-red-400' : 'text-emerald-400'}`}>
+                ₹{actualRemaining >= 100000 ? `${(actualRemaining / 100000).toFixed(1)}L` : `${(actualRemaining / 1000).toFixed(0)}K`}
+              </p>
+            </div>
           </div>
-        </div>
-        
-        {/* Players List - Scrollable Compact (Max 4 visible) */}
-        {teamPlayers.length > 0 ? (
-          <div className="flex-1 min-h-0">
-            <div className="overflow-y-auto custom-scrollbar space-y-1.5" style={{ maxHeight: '240px' }}>
-            {teamPlayers.map((player) => (
-              <div
-                key={player._id}
-                className={`group/player relative overflow-hidden bg-gradient-to-br ${getPositionColor(player.position)} backdrop-blur-sm rounded-lg p-2 border ${
-                  player.position === 'Spiker' ? 'border-amber-500/40' : 
-                  player.position === 'Setter' ? 'border-purple-500/40' : 
-                  player.position === 'Libero' ? 'border-blue-500/40' :
-                  player.position === 'Blocker' ? 'border-red-500/40' : 
-                  'border-emerald-500/40'
-                } hover:scale-102 transition-all duration-300`}
-              >
-                {/* Shimmer Effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/player:translate-x-full transition-transform duration-1000"></div>
-                
-                <div className="relative z-10 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                    <span className="text-lg">{getPositionIcon(player.position)}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-white text-xs truncate">{player.name}</p>
-                      <p className="text-[10px] text-slate-300">{player.position} • {player.class}</p>
+
+          {/* Elegant Progress Bar */}
+          <div className="relative h-1 rounded-full overflow-hidden mb-4"
+            style={{ background: 'rgba(255,255,255,0.05)' }}
+          >
+            <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out"
+              style={{
+                width: `${budgetPercent}%`,
+                background: budgetPercent > 80 
+                  ? 'linear-gradient(90deg, #ef4444, #dc2626)' 
+                  : budgetPercent > 50 
+                  ? 'linear-gradient(90deg, #D4AF37, #F0D770)' 
+                  : 'linear-gradient(90deg, #10b981, #34d399)',
+                boxShadow: `0 0 10px ${budgetPercent > 80 ? 'rgba(239,68,68,0.5)' : budgetPercent > 50 ? 'rgba(212,175,55,0.5)' : 'rgba(16,185,129,0.5)'}`
+              }}
+            />
+          </div>
+
+          {/* Players List - Minimal */}
+          {teamPlayers.length > 0 ? (
+            <div className="space-y-1.5 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
+              {teamPlayers.map((player) => (
+                <div key={player._id}
+                  className="flex items-center justify-between py-2 px-3 rounded-lg transition-all duration-200 hover:bg-white/[0.03]"
+                  style={{ background: 'rgba(255,255,255,0.02)' }}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-sm opacity-80">{getPositionIcon(player.position)}</span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{player.name}</p>
+                      <p className="text-[10px] text-gray-500">{player.position}</p>
                     </div>
                   </div>
-                  <div className="flex-shrink-0 bg-slate-900/60 backdrop-blur-sm rounded px-1.5 py-0.5">
-                    <p className="text-[10px] font-black bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
-                      ₹{(player.soldAmount! / 1000).toFixed(0)}K
-                    </p>
-                  </div>
+                  <p className="text-sm font-semibold flex-shrink-0" style={{ color: '#D4AF37' }}>
+                    ₹{((player.soldAmount || 0) / 1000).toFixed(0)}K
+                  </p>
                 </div>
-              </div>
-            ))}
+              ))}
             </div>
-          </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-slate-900/30 rounded-lg border border-slate-700/30">
-            <div className="text-center py-4">
-              <p className="text-slate-400 text-xs font-semibold">No Players</p>
+          ) : (
+            <div className="py-6 text-center">
+              <p className="text-xs text-gray-600">No players acquired</p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Bottom Accent */}
+        <div className="absolute bottom-0 left-0 right-0 h-[1px]"
+          style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(212, 175, 55, 0.2) 50%, transparent 100%)' }}
+        />
       </div>
     </div>
   );

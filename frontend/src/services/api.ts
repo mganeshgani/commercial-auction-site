@@ -47,12 +47,23 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 30000; // 30 seconds
+const CACHE_TTL = 10000; // 10 seconds - reduced for faster updates
+const REALTIME_CACHE_TTL = 5000; // 5 seconds for real-time data
 const pendingRequests = new Map<string, Promise<any>>();
 
-const getCached = (key: string) => {
+// Track if cache was recently cleared (within 2 seconds)
+let lastCacheClear = 0;
+const CACHE_CLEAR_GRACE_PERIOD = 2000;
+
+const getCached = (key: string, customTTL?: number) => {
+  // If cache was recently cleared, don't return cached data
+  if (Date.now() - lastCacheClear < CACHE_CLEAR_GRACE_PERIOD) {
+    return null;
+  }
+  
   const entry = cache.get(key);
-  if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
+  const ttl = customTTL || (key.includes('players') ? REALTIME_CACHE_TTL : CACHE_TTL);
+  if (entry && Date.now() - entry.timestamp < ttl) {
     return entry.data;
   }
   cache.delete(key);
@@ -82,6 +93,13 @@ const deduplicateRequest = async <T>(key: string, requestFn: () => Promise<T>): 
 
 export const clearCache = () => {
   cache.clear();
+  lastCacheClear = Date.now(); // Mark cache clear time
+};
+
+// Force clear specific cache key
+export const clearCacheKey = (key: string) => {
+  cache.delete(key);
+  lastCacheClear = Date.now();
 };
 
 export const playerService = {

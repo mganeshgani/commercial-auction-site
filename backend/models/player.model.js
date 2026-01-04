@@ -62,5 +62,7 @@ playerSchema.index({ status: 1 });
 playerSchema.index({ team: 1 });
 playerSchema.index({ regNo: 1 }); // Unique index for duplicate checks
 playerSchema.index({ status: 1, team: 1 }); // Compound index for filtered queries
+playerSchema.index({ auctioneer: 1, status: 1 }); // Compound for auctioneer + status queries
+playerSchema.index({ auctioneer: 1, createdAt: -1 }); // For sorted queries
 
 module.exports = mongoose.model('Player', playerSchema);

@@ -2,6 +2,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Player } from '../types';
 import { toast } from 'react-toastify';
+import { clearCache } from '../services/api';
+
+// Upload status types for detailed progress tracking
+type UploadStatus = 'idle' | 'validating' | 'uploading' | 'processing' | 'success' | 'error';
+
+interface UploadProgress {
+  status: UploadStatus;
+  progress: number;
+  message: string;
+}
 
 interface FormField {
   fieldName: string;
@@ -32,6 +42,11 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
   const [photoPreview, setPhotoPreview] = useState<string>(player?.photoUrl || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress>({
+    status: 'idle',
+    progress: 0,
+    message: ''
+  });
 
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
   const isAddMode = !player;
@@ -91,12 +106,14 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
     e.preventDefault();
     setLoading(true);
     setError('');
+    setUploadProgress({ status: 'validating', progress: 10, message: 'Validating form...' });
 
     // Validate photo for add mode only if photo field is required
     const photoField = formFields.find(f => f.fieldName === 'photo');
     if (isAddMode && photoField?.required && !photo) {
       setError('Please upload a player photo');
       setLoading(false);
+      setUploadProgress({ status: 'idle', progress: 0, message: '' });
       return;
     }
 
@@ -116,74 +133,100 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
       // Add photo if present
       if (photo) {
         submitData.append('photo', photo);
+        setUploadProgress({ status: 'uploading', progress: 20, message: 'Uploading photo...' });
+      } else {
+        setUploadProgress({ status: 'uploading', progress: 30, message: 'Saving player data...' });
       }
 
-      // OPTIMIZED: Close modal immediately
-      onClose();
-      setLoading(false);
+      // Clear cache before making API calls
+      clearCache();
 
-      // Show loading toast
-      const toastId = toast.loading(isAddMode ? 'Adding player...' : 'Updating player...');
-
-      // OPTIMISTIC UPDATE: Immediately call onSuccess for optimistic UI update
       if (isAddMode) {
-        // Trigger optimistic update immediately
-        onSuccess();
+        // Show progress in modal - don't close yet
+        setUploadProgress({ status: 'uploading', progress: 40, message: 'Creating player record...' });
         
-        // Background upload for add mode
-        axios.post(`${API_URL}/players`, submitData, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
-        }).then(() => {
-          toast.update(toastId, {
-            render: 'Player added successfully!',
-            type: 'success',
-            isLoading: false,
-            autoClose: 1000
+        try {
+          // Make the API call with progress tracking
+          const response = await axios.post(`${API_URL}/players`, submitData, {
+            headers: { 
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data'
+            },
+            onUploadProgress: (progressEvent) => {
+              if (progressEvent.total) {
+                const percentCompleted = Math.round((progressEvent.loaded * 50) / progressEvent.total) + 30;
+                setUploadProgress({ 
+                  status: 'uploading', 
+                  progress: Math.min(percentCompleted, 80), 
+                  message: photo ? 'Uploading photo...' : 'Saving...' 
+                });
+              }
+            }
           });
-          // Socket will sync the real data
-        }).catch(err => {
-          console.error('Error:', err);
-          toast.update(toastId, {
-            render: err.response?.data?.error || 'Failed to add player. Please try again.',
-            type: 'error',
-            isLoading: false,
-            autoClose: 3000
-          });
-          // Refresh to remove optimistic player and show actual state
-          setTimeout(() => onSuccess(), 500);
-        });
+          
+          setUploadProgress({ status: 'processing', progress: 90, message: 'Finalizing...' });
+          
+          // Success - show completion and close
+          setUploadProgress({ status: 'success', progress: 100, message: 'Player added!' });
+          toast.success(`✅ ${response.data.name} added successfully!`, { autoClose: 2000 });
+          
+          // Short delay to show success state, then close and refresh
+          setTimeout(() => {
+            onClose();
+            onSuccess();
+          }, 500);
+        } catch (err: any) {
+          console.error('Error adding player:', err);
+          const errorMessage = err.response?.data?.error || 'Failed to add player. Please try again.';
+          setError(errorMessage);
+          setUploadProgress({ status: 'error', progress: 0, message: errorMessage });
+          toast.error(errorMessage, { autoClose: 3000 });
+          setLoading(false);
+        }
       } else {
-        // For updates, await and then refresh
-        axios.put(`${API_URL}/players/${player._id}`, submitData, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
-        }).then(() => {
-          toast.update(toastId, {
-            render: 'Player updated successfully!',
-            type: 'success',
-            isLoading: false,
-            autoClose: 1000
+        // Edit mode - update existing player
+        setUploadProgress({ status: 'uploading', progress: 40, message: 'Updating player...' });
+        
+        try {
+          await axios.put(`${API_URL}/players/${player._id}`, submitData, {
+            headers: { 
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data'
+            },
+            onUploadProgress: (progressEvent) => {
+              if (progressEvent.total) {
+                const percentCompleted = Math.round((progressEvent.loaded * 50) / progressEvent.total) + 30;
+                setUploadProgress({ 
+                  status: 'uploading', 
+                  progress: Math.min(percentCompleted, 80), 
+                  message: 'Updating...' 
+                });
+              }
+            }
           });
-          onSuccess();
-        }).catch(err => {
-          console.error('Error:', err);
-          toast.update(toastId, {
-            render: err.response?.data?.error || 'Failed to update player. Please try again.',
-            type: 'error',
-            isLoading: false,
-            autoClose: 3000
-          });
-          onSuccess();
-        });
+          
+          setUploadProgress({ status: 'success', progress: 100, message: 'Player updated!' });
+          toast.success('Player updated successfully!', { autoClose: 2000 });
+          
+          setTimeout(() => {
+            onClose();
+            onSuccess();
+          }, 500);
+        } catch (err: any) {
+          console.error('Error updating player:', err);
+          const errorMessage = err.response?.data?.error || 'Failed to update player. Please try again.';
+          setError(errorMessage);
+          setUploadProgress({ status: 'error', progress: 0, message: errorMessage });
+          toast.error(errorMessage, { autoClose: 3000 });
+          setLoading(false);
+        }
       }
     } catch (err: any) {
       console.error('Submit error:', err);
-      toast.error(err.response?.data?.error || 'Failed to prepare submission. Please try again.');
+      const errorMessage = err.response?.data?.error || 'Failed to prepare submission. Please try again.';
+      setError(errorMessage);
+      setUploadProgress({ status: 'error', progress: 0, message: errorMessage });
+      toast.error(errorMessage);
       setLoading(false);
     }
   };
@@ -324,6 +367,59 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
             </div>
           )}
 
+          {/* Upload Progress Indicator */}
+          {loading && uploadProgress.status !== 'idle' && (
+            <div className="rounded-lg p-3 sm:p-4" style={{
+              background: uploadProgress.status === 'error' 
+                ? 'rgba(239, 68, 68, 0.15)' 
+                : uploadProgress.status === 'success' 
+                ? 'rgba(16, 185, 129, 0.15)' 
+                : 'rgba(99, 102, 241, 0.15)',
+              border: `1px solid ${uploadProgress.status === 'error' 
+                ? 'rgba(239, 68, 68, 0.3)' 
+                : uploadProgress.status === 'success' 
+                ? 'rgba(16, 185, 129, 0.3)' 
+                : 'rgba(99, 102, 241, 0.3)'}`
+            }}>
+              <div className="flex items-center gap-3 mb-2">
+                {uploadProgress.status === 'success' ? (
+                  <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                ) : uploadProgress.status === 'error' ? (
+                  <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                ) : (
+                  <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                )}
+                <span className={`text-sm font-medium ${
+                  uploadProgress.status === 'error' ? 'text-red-400' : 
+                  uploadProgress.status === 'success' ? 'text-green-400' : 'text-indigo-400'
+                }`}>
+                  {uploadProgress.message}
+                </span>
+              </div>
+              {uploadProgress.status !== 'error' && (
+                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full rounded-full transition-all duration-300 ease-out"
+                    style={{
+                      width: `${uploadProgress.progress}%`,
+                      background: uploadProgress.status === 'success' 
+                        ? 'linear-gradient(90deg, #10b981, #059669)'
+                        : 'linear-gradient(90deg, #6366f1, #8b5cf6)'
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-2 sm:gap-3 pt-2">
             <button
               type="button"
@@ -334,15 +430,27 @@ const EditPlayerModal: React.FC<EditPlayerModalProps> = ({ player, onClose, onSu
             </button>
             <button
               type="submit"
-              disabled={loading}
-              className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold text-white text-sm sm:text-base transition-all duration-300 disabled:cursor-not-allowed"
+              disabled={loading || uploadProgress.status === 'success'}
+              className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 disabled:from-gray-600 disabled:to-gray-700 rounded-lg font-bold text-white text-sm sm:text-base transition-all duration-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
-                isAddMode ? (
-                  photo ? 'Uploading...' : 'Adding...'
-                ) : (
-                  photo ? 'Uploading...' : 'Saving...'
-                )
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>
+                    {uploadProgress.status === 'validating' && 'Validating...'}
+                    {uploadProgress.status === 'uploading' && (photo ? 'Uploading...' : 'Saving...')}
+                    {uploadProgress.status === 'processing' && 'Processing...'}
+                    {uploadProgress.status === 'success' && 'Done!'}
+                    {uploadProgress.status === 'error' && 'Failed'}
+                  </span>
+                </>
+              ) : uploadProgress.status === 'success' ? (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Done!</span>
+                </>
               ) : (
                 isAddMode ? 'Add Player' : 'Save Changes'
               )}

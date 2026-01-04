@@ -47,6 +47,9 @@ const teamSchema = new mongoose.Schema({
 teamSchema.index({ name: 1, auctioneer: 1 }, { unique: true });
 // Index for faster auctioneer-based queries
 teamSchema.index({ auctioneer: 1 });
+// Compound index for auctioneer + sorting
+teamSchema.index({ auctioneer: 1, createdAt: -1 });
+teamSchema.index({ auctioneer: 1, name: 1 });
 
 // Virtual for available slots
 teamSchema.virtual('availableSlots').get(function() {

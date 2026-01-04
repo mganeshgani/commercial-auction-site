@@ -132,7 +132,12 @@ exports.login = async (req, res) => {
             name: user.name,
             email: user.email,
             role: user.role,
-            lastLogin: user.lastLogin
+            isActive: user.isActive,
+            lastLogin: user.lastLogin,
+            createdAt: user.createdAt,
+            limits: user.limits,
+            usage: user.usage,
+            accessExpiry: user.accessExpiry
           },
           token
         }
@@ -169,13 +174,42 @@ exports.logout = async (req, res) => {
   }
 };
 
-// @desc    Get current logged in user
+// @desc    Get current logged in user - OPTIMIZED
 // @route   GET /api/auth/me
 // @access  Private
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    // OPTIMIZED: Use lean() and select only needed fields
+    const user = await User.findById(req.user._id || req.user.id)
+      .select('_id name email role isActive lastLogin createdAt limits usage accessExpiry')
+      .lean();
 
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Get real-time usage counts - OPTIMIZED with Promise.all
+    const Player = require('../models/player.model');
+    const Team = require('../models/team.model');
+    
+    const [playerCount, teamCount] = await Promise.all([
+      Player.countDocuments({ auctioneer: user._id }),
+      Team.countDocuments({ auctioneer: user._id })
+    ]);
+
+    // Update usage in memory (don't need to save - just return accurate data)
+    const currentUsage = {
+      totalPlayers: playerCount,
+      totalTeams: teamCount,
+      totalAuctions: user.usage?.totalAuctions || 0
+    };
+
+    // Set cache header for profile data
+    res.set('Cache-Control', 'private, max-age=5');
+    
     res.status(200).json({
       success: true,
       data: {
@@ -186,7 +220,10 @@ exports.getMe = async (req, res) => {
           role: user.role,
           isActive: user.isActive,
           lastLogin: user.lastLogin,
-          createdAt: user.createdAt
+          createdAt: user.createdAt,
+          limits: user.limits,
+          usage: currentUsage,
+          accessExpiry: user.accessExpiry
         }
       }
     });
@@ -209,7 +246,7 @@ exports.updateDetails = async (req, res) => {
       email: req.body.email
     };
 
-    const user = await User.findByIdAndUpdate(req.user.id, fieldsToUpdate, {
+    const user = await User.findByIdAndUpdate(req.user._id || req.user.id, fieldsToUpdate, {
       new: true,
       runValidators: true
     });
@@ -239,7 +276,7 @@ exports.updateDetails = async (req, res) => {
 // @access  Private
 exports.updatePassword = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('+password');
+    const user = await User.findById(req.user._id || req.user.id).select('+password');
 
     // Check current password
     const isMatch = await user.comparePassword(req.body.currentPassword);
@@ -285,7 +322,8 @@ exports.generateRegistrationLink = async (req, res) => {
     console.log('🔗 Generate registration link request');
     console.log('User from req:', req.user);
     
-    const userId = req.user.id;
+    // Support both _id (lean) and id (mongoose document)
+    const userId = req.user._id || req.user.id;
 
     // Find user
     const user = await User.findById(userId);

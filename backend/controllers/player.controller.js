@@ -134,42 +134,46 @@ exports.registerPlayer = async (req, res) => {
   }
 };
 
-// Get random unsold player
+// Get random unsold player - OPTIMIZED with aggregation
 exports.getRandomPlayer = async (req, res) => {
   try {
-    // Filter by logged-in auctioneer
-    const count = await Player.countDocuments({ 
-      status: 'available',
-      auctioneer: req.user._id 
-    });
-    if (count === 0) {
+    // OPTIMIZED: Use aggregation $sample for better random selection
+    const players = await Player.aggregate([
+      { 
+        $match: { 
+          status: 'available',
+          auctioneer: req.user._id 
+        } 
+      },
+      { $sample: { size: 1 } }
+    ]);
+    
+    if (players.length === 0) {
       return res.status(404).json({ message: 'No available players found' });
     }
 
-    const random = Math.floor(Math.random() * count);
-    const player = await Player.findOne({ 
-      status: 'available',
-      auctioneer: req.user._id 
-    }).skip(random);
+    const player = players[0];
     res.json(player);
   } catch (error) {
+    console.error('Error fetching random player:', error);
     res.status(500).json({ error: 'Error fetching random player' });
   }
 };
 
-// Assign player to team
+// Assign player to team - OPTIMIZED with parallel queries
 exports.assignPlayer = async (req, res) => {
   try {
     const { playerId, teamId, amount } = req.body;
     
-    // Verify player belongs to this auctioneer
-    const player = await Player.findOne({ _id: playerId, auctioneer: req.user._id });
+    // OPTIMIZED: Fetch player and team in parallel
+    const [player, team] = await Promise.all([
+      Player.findOne({ _id: playerId, auctioneer: req.user._id }),
+      Team.findOne({ _id: teamId, auctioneer: req.user._id })
+    ]);
+    
     if (!player) {
       return res.status(404).json({ error: 'Player not found or access denied' });
     }
-
-    // Verify team belongs to this auctioneer
-    const team = await Team.findOne({ _id: teamId, auctioneer: req.user._id });
     if (!team) {
       return res.status(404).json({ error: 'Team not found or access denied' });
     }
@@ -188,7 +192,6 @@ exports.assignPlayer = async (req, res) => {
     player.status = 'sold';
     player.team = teamId;
     player.soldAmount = amount;
-    await player.save();
 
     // Update team
     team.players.push(playerId);
@@ -196,13 +199,16 @@ exports.assignPlayer = async (req, res) => {
     if (team.budget !== null) {
       team.remainingBudget -= amount;
     }
-    await team.save();
+    
+    // OPTIMIZED: Save both in parallel
+    await Promise.all([player.save(), team.save()]);
 
     // Emit socket events only to this auctioneer's room
     const io = req.app.get('io');
     if (io) {
-      io.to(`auctioneer_${req.user._id}`).emit('playerSold', player);
-      io.to(`auctioneer_${req.user._id}`).emit('teamUpdated', team);
+      const room = `auctioneer_${req.user._id}`;
+      io.to(room).emit('playerSold', player);
+      io.to(room).emit('teamUpdated', team);
     }
 
     res.json({ message: 'Player assigned successfully', player, team });
@@ -239,32 +245,47 @@ exports.markUnsold = async (req, res) => {
   }
 };
 
-// Get all unsold players
+// Get all unsold players - OPTIMIZED
 exports.getUnsoldPlayers = async (req, res) => {
   try {
     // Filter by logged-in auctioneer
+    // OPTIMIZED: Use lean() for plain JS objects, sort by name
     const players = await Player.find({ 
       status: 'unsold',
       auctioneer: req.user._id 
-    });
+    })
+    .sort({ name: 1 })
+    .lean();
+    
+    res.set('Cache-Control', 'private, max-age=5');
     res.json(players);
   } catch (error) {
+    console.error('Error fetching unsold players:', error);
     res.status(500).json({ error: 'Error fetching unsold players' });
   }
 };
 
-// Get all players
+// Get all players - OPTIMIZED
 exports.getAllPlayers = async (req, res) => {
   try {
     // Filter players by the logged-in auctioneer
-    const players = await Player.find({ auctioneer: req.user._id }).populate('team', 'name');
+    // OPTIMIZED: Use lean() for plain JS objects (2-5x faster)
+    // OPTIMIZED: Only populate necessary team fields
+    const players = await Player.find({ auctioneer: req.user._id })
+      .populate('team', 'name')
+      .sort({ createdAt: -1 }) // Newest first
+      .lean();
+    
+    // Set cache headers for better performance
+    res.set('Cache-Control', 'private, max-age=5');
     res.json(players);
   } catch (error) {
+    console.error('Error fetching players:', error);
     res.status(500).json({ error: 'Error fetching players' });
   }
 };
 
-// Delete all players (for auction reset)
+// Delete all players (for auction reset) - OPTIMIZED
 exports.deleteAllPlayers = async (req, res) => {
   try {
     // Only delete players belonging to the logged-in auctioneer
@@ -274,6 +295,7 @@ exports.deleteAllPlayers = async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       io.to(`auctioneer_${req.user._id}`).emit('dataReset');
+      io.to(`auctioneer_${req.user._id}`).emit('playersCleared');
     }
     
     res.json({ 
@@ -281,6 +303,7 @@ exports.deleteAllPlayers = async (req, res) => {
       deletedCount: result.deletedCount 
     });
   } catch (error) {
+    console.error('Error deleting all players:', error);
     res.status(500).json({ error: 'Error deleting all players' });
   }
 };
