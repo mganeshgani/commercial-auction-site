@@ -11,7 +11,7 @@ const ResultsPage: React.FC = () => {
   const { isAuctioneer } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [playerToDelete, setPlayerToDelete] = useState<Player | null>(null);
   const [playerToChangeTeam, setPlayerToChangeTeam] = useState<Player | null>(null);
@@ -99,7 +99,6 @@ const ResultsPage: React.FC = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      setLoading(true);
       await fetchData(true); // Use cache
       setLoading(false);
     };

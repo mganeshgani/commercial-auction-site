@@ -3,13 +3,14 @@ import { Player, Team } from '../types';
 import confetti from 'canvas-confetti';
 import { useAuth } from '../contexts/AuthContext';
 import { playerService, teamService, clearCache } from '../services/api';
+import { initializeSocket } from '../services/socket';
 import UnsoldPlayerCard from '../components/unsold/UnsoldPlayerCard';
 
 const UnsoldPage: React.FC = () => {
   const { isAuctioneer } = useAuth();
   const [unsoldPlayers, setUnsoldPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [soldAmount, setSoldAmount] = useState<number>(0);
@@ -37,11 +38,51 @@ const UnsoldPage: React.FC = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      setLoading(true);
       await Promise.all([fetchUnsoldPlayers(), fetchTeams()]);
       setLoading(false);
     };
     loadData();
+
+    // Setup Socket.io for real-time updates
+    const socket = initializeSocket();
+
+    socket.on('connect', () => {
+      console.log('✓ Unsold page connected to socket');
+    });
+
+    // Debounced fetch for socket events (background updates without loading state)
+    let fetchTimeout: NodeJS.Timeout | null = null;
+    const debouncedFetch = () => {
+      if (fetchTimeout) clearTimeout(fetchTimeout);
+      fetchTimeout = setTimeout(() => {
+        console.log('🔄 Unsold page: Background update triggered');
+        clearCache();
+        fetchUnsoldPlayers();
+        fetchTeams();
+      }, 300);
+    };
+
+    // Listen to relevant events
+    socket.on('playerAdded', debouncedFetch);
+    socket.on('playerDeleted', debouncedFetch);
+    socket.on('playerSold', debouncedFetch);
+    socket.on('playerMarkedUnsold', debouncedFetch);
+    socket.on('playerUpdated', debouncedFetch);
+    socket.on('dataReset', () => {
+      console.log('Data reset - clearing cache');
+      clearCache();
+      fetchUnsoldPlayers();
+      fetchTeams();
+    });
+
+    socket.on('disconnect', () => {
+      console.log('✗ Unsold page disconnected');
+    });
+
+    return () => {
+      if (fetchTimeout) clearTimeout(fetchTimeout);
+      socket.disconnect();
+    };
   }, [fetchUnsoldPlayers, fetchTeams]);
 
   const handleAuctionClick = useCallback((player: Player) => {
