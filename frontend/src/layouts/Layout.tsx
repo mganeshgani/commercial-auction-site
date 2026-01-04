@@ -31,6 +31,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showLimitsDetails, setShowLimitsDetails] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
   
@@ -467,66 +468,223 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     {/* Menu Items */}
                     <div className="p-2">
                       {user?.role === 'auctioneer' && (
-                        <Link
-                          to="/settings"
-                          onClick={() => setShowUserMenu(false)}
-                          className="group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300"
-                          style={{ background: 'transparent' }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.08) 100%)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                          }}
-                        >
-                          <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '10px',
-                            background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.1) 100%)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}>
-                            <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
+                        <>
+                          {/* Limits Details - Collapsible Card */}
+                          <div className="mb-1.5">
+                            <button
+                              onClick={() => setShowLimitsDetails(!showLimitsDetails)}
+                              className="w-full group flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-300"
+                              style={{ 
+                                background: showLimitsDetails 
+                                  ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%)'
+                                  : 'transparent',
+                                border: showLimitsDetails
+                                  ? '1px solid rgba(99, 102, 241, 0.2)'
+                                  : '1px solid transparent'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!showLimitsDetails) {
+                                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.05) 100%)';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!showLimitsDetails) {
+                                  e.currentTarget.style.background = 'transparent';
+                                }
+                              }}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <div style={{
+                                  width: '28px',
+                                  height: '28px',
+                                  borderRadius: '8px',
+                                  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}>
+                                  <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                  </svg>
+                                </div>
+                                <div className="text-left">
+                                  <p className="text-xs font-semibold text-white">Limits Details</p>
+                                  <p className="text-[9px] text-slate-500">Usage & access info</p>
+                                </div>
+                              </div>
+                              <svg 
+                                className="w-4 h-4 text-indigo-400 transition-transform duration-300" 
+                                style={{ transform: showLimitsDetails ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                                fill="none" 
+                                stroke="currentColor" 
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                            
+                            {/* Expandable Details Card */}
+                            <div 
+                              style={{
+                                maxHeight: showLimitsDetails ? '400px' : '0',
+                                opacity: showLimitsDetails ? 1 : 0,
+                                overflow: 'hidden',
+                                transition: 'all 0.3s ease-in-out'
+                              }}
+                            >
+                              <div className="mt-1.5 px-3 py-2.5 rounded-lg" style={{
+                                background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.6) 0%, rgba(30, 41, 59, 0.4) 100%)',
+                                border: '1px solid rgba(99, 102, 241, 0.15)'
+                              }}>
+                                {/* Players */}
+                                <div className="mb-2.5">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[10px] text-slate-300 flex items-center gap-1.5 font-medium">
+                                      <span className="text-xs">⚽</span> Players
+                                    </span>
+                                    <span className="text-[10px] font-bold" style={{
+                                      color: isPlayersLimitReached ? '#ef4444' : (user.usage && user.limits?.maxPlayers && user.limits.maxPlayers > 0 && (user.usage.totalPlayers / user.limits.maxPlayers > 0.8)) ? '#f59e0b' : '#10b981'
+                                    }}>
+                                      {user.usage?.totalPlayers || 0} / {user.limits?.maxPlayers === 0 ? '∞' : user.limits?.maxPlayers}
+                                    </span>
+                                  </div>
+                                  {user.limits && user.limits.maxPlayers > 0 && (
+                                    <div className="h-1 bg-slate-800/50 rounded-full overflow-hidden">
+                                      <div
+                                        className="h-full rounded-full transition-all duration-500"
+                                        style={{
+                                          width: `${Math.min(((user.usage?.totalPlayers || 0) / user.limits.maxPlayers) * 100, 100)}%`,
+                                          background: isPlayersLimitReached 
+                                            ? 'linear-gradient(90deg, #ef4444, #dc2626)' 
+                                            : (user.usage && (user.usage.totalPlayers / user.limits.maxPlayers > 0.8)) 
+                                            ? 'linear-gradient(90deg, #f59e0b, #d97706)' 
+                                            : 'linear-gradient(90deg, #10b981, #059669)'
+                                        }}
+                                      ></div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Teams */}
+                                <div className="mb-2.5">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[10px] text-slate-300 flex items-center gap-1.5 font-medium">
+                                      <span className="text-xs">🏆</span> Teams
+                                    </span>
+                                    <span className="text-[10px] font-bold" style={{
+                                      color: isTeamsLimitReached ? '#ef4444' : (user.usage && user.limits?.maxTeams && user.limits.maxTeams > 0 && (user.usage.totalTeams / user.limits.maxTeams > 0.8)) ? '#f59e0b' : '#10b981'
+                                    }}>
+                                      {user.usage?.totalTeams || 0} / {user.limits?.maxTeams === 0 ? '∞' : user.limits?.maxTeams}
+                                    </span>
+                                  </div>
+                                  {user.limits && user.limits.maxTeams > 0 && (
+                                    <div className="h-1 bg-slate-800/50 rounded-full overflow-hidden">
+                                      <div
+                                        className="h-full rounded-full transition-all duration-500"
+                                        style={{
+                                          width: `${Math.min(((user.usage?.totalTeams || 0) / user.limits.maxTeams) * 100, 100)}%`,
+                                          background: isTeamsLimitReached 
+                                            ? 'linear-gradient(90deg, #ef4444, #dc2626)' 
+                                            : (user.usage && (user.usage.totalTeams / user.limits.maxTeams > 0.8)) 
+                                            ? 'linear-gradient(90deg, #f59e0b, #d97706)' 
+                                            : 'linear-gradient(90deg, #10b981, #059669)'
+                                        }}
+                                      ></div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Access Expiry */}
+                                <div className="pt-2 border-t border-slate-700/50">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] text-slate-300 flex items-center gap-1.5 font-medium">
+                                      <span className="text-xs">📅</span> Access
+                                    </span>
+                                    <span className="text-[10px] font-semibold text-slate-300">
+                                      {user.accessExpiry 
+                                        ? `Expires ${new Date(user.accessExpiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` 
+                                        : 'Unlimited'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Status Badge */}
+                                {(isPlayersLimitReached || isTeamsLimitReached) && (
+                                  <div className="mt-2 px-2 py-1.5 rounded" style={{
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)'
+                                  }}>
+                                    <p className="text-[9px] text-red-400 flex items-center gap-1.5">
+                                      <span>⚠️</span>
+                                      <span>Limit reached! Contact admin.</span>
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-semibold text-white">Settings</p>
-                            <p className="text-[10px] text-slate-500">Branding & preferences</p>
-                          </div>
-                        </Link>
+
+                          <Link
+                            to="/settings"
+                            onClick={() => setShowUserMenu(false)}
+                            className="group flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-300"
+                            style={{ background: 'transparent' }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(212, 175, 55, 0.12) 0%, rgba(212, 175, 55, 0.06) 100%)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'transparent';
+                            }}
+                          >
+                            <div style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '8px',
+                              background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.12) 100%)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <svg className="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                            </div>
+                            <div className="text-left">
+                              <p className="text-xs font-semibold text-white">Settings</p>
+                              <p className="text-[9px] text-slate-500">Branding & preferences</p>
+                            </div>
+                          </Link>
+                        </>
                       )}
                       
                       <button
                         onClick={handleLogout}
-                        className="w-full group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 mt-1"
+                        className="w-full group flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-300 mt-1"
                         style={{ background: 'transparent' }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.08) 100%)';
+                          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(239, 68, 68, 0.06) 100%)';
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.background = 'transparent';
                         }}
                       >
                         <div style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '10px',
-                          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%)',
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.12) 100%)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center'
                         }}>
-                          <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                           </svg>
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold text-white text-left">Sign Out</p>
-                          <p className="text-[10px] text-slate-500 text-left">End your session</p>
+                        <div className="text-left">
+                          <p className="text-xs font-semibold text-white">Sign Out</p>
+                          <p className="text-[9px] text-slate-500">End your session</p>
                         </div>
                       </button>
                     </div>
