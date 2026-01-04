@@ -5,7 +5,6 @@ import { initializeSocket } from '../services/socket';
 import { useAuth } from '../contexts/AuthContext';
 import { resultsService, clearCache } from '../services/api';
 import TeamCard from '../components/results/TeamCard';
-import PlayerCard from '../components/results/PlayerCard';
 
 const ResultsPage: React.FC = () => {
   const { isAuctioneer } = useAuth();
@@ -420,7 +419,6 @@ const ResultsPage: React.FC = () => {
                     ? selectedTeam.remainingBudget 
                     : (selectedTeam.budget || 0) - spent;
                   const actualSpent = (selectedTeam.budget || 0) - actualRemaining;
-                  const budgetPercent = ((actualSpent / (selectedTeam.budget || 1)) * 100);
                   
                   return (
                     <>

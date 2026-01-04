@@ -161,14 +161,6 @@ const AuctionPage: React.FC = () => {
     };
   }, [fetchTeams, fetchAvailableCount]);
 
-  // Memoize available teams (teams with enough budget)
-  const availableTeams = useMemo(() => {
-    return teams.filter((t: Team) => 
-      (t.remainingBudget ?? t.budget ?? 0) >= soldAmount && 
-      t.filledSlots < t.totalSlots
-    );
-  }, [teams, soldAmount]);
-
   const handleNextPlayer = useCallback(() => {
     if (!hasAuctionStarted) {
       setHasAuctionStarted(true);

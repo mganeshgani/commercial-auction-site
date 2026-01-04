@@ -304,7 +304,6 @@ const TeamsPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {teams.map((team, index) => {
               const budgetPercentage = getBudgetPercentage(team);
-              const slotsPercentage = getSlotsPercentage(team);
               const spent = (team.budget || 0) - (team.remainingBudget || 0);
               
               return (

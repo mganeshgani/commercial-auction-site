@@ -369,8 +369,6 @@ const PlayersPage: React.FC = () => {
         <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 md:p-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredPlayers.map((player) => {
-              const config = statusConfig[player.status as keyof typeof statusConfig];
-              
               return (
                 <div
                   key={player._id}
