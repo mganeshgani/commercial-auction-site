@@ -144,10 +144,6 @@ const TeamsPage: React.FC = () => {
     return total > 0 ? (team.remainingBudget / total) * 100 : 0;
   }, []);
 
-  const getSlotsPercentage = useCallback((team: Team) => {
-    return team.totalSlots > 0 ? ((team.filledSlots || 0) / team.totalSlots) * 100 : 0;
-  }, []);
-
   // Statistics calculations
   const totalTeams = teams.length;
   const totalPlayers = useMemo(() => teams.reduce((sum, t) => sum + (t.filledSlots || 0), 0), [teams]);

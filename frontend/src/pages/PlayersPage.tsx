@@ -145,27 +145,6 @@ const PlayersPage: React.FC = () => {
     [filter, players]
   );
 
-  const statusConfig = {
-    available: { 
-      bg: 'bg-green-500/20', 
-      border: 'border-green-500/30', 
-      text: 'text-green-400',
-      icon: '✓'
-    },
-    sold: { 
-      bg: 'bg-blue-500/20', 
-      border: 'border-blue-500/30', 
-      text: 'text-blue-400',
-      icon: '💰'
-    },
-    unsold: { 
-      bg: 'bg-red-500/20', 
-      border: 'border-red-500/30', 
-      text: 'text-red-400',
-      icon: '✗'
-    }
-  };
-
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Ultra-Compact Premium Header */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Player, Team } from '../types';
 import SpinWheel from '../components/auction/SpinWheel';
 import PlayerCard from '../components/auction/PlayerCard';
