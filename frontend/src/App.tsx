@@ -89,97 +89,105 @@ function App() {
                 zIndex: 99999
               }}
             />
-            <Suspense fallback={<LoadingSpinner />}>
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/player-registration/:token" element={<PlayerRegistrationPage />} />
-                
-                {/* Root redirect based on role */}
-                <Route path="/" element={
-                  <ProtectedRoute>
-                    <RoleBasedRedirect />
-                  </ProtectedRoute>
-                } />
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/login" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Login />
+                </Suspense>
+              } />
+              <Route path="/player-registration/:token" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <PlayerRegistrationPage />
+                </Suspense>
+              } />
+              
+              {/* Root redirect based on role */}
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <RoleBasedRedirect />
+                </ProtectedRoute>
+              } />
 
-                {/* Admin Routes - Only accessible by admin */}
-                <Route path="/admin/*" element={
-                  <ProtectedRoute requiredRole="admin">
-                    <AdminLayout>
+              {/* Admin Routes - Only accessible by admin */}
+              <Route path="/admin/*" element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminLayout>
+                    <Suspense fallback={<PageLoadingSpinner />}>
                       <Routes>
                         <Route index element={<AdminDashboard />} />
                         <Route path="auctioneers" element={<AuctioneersPage />} />
                       </Routes>
-                    </AdminLayout>
-                  </ProtectedRoute>
-                } />
+                    </Suspense>
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
 
-                {/* Auctioneer Routes - Accessible by auctioneers only (admin blocked) */}
-                <Route path="/auction" element={
-                  <ProtectedRoute requiredRole="auctioneer">
-                    <Layout>
-                      <Suspense fallback={<PageLoadingSpinner />}>
-                        <AuctionPage />
-                      </Suspense>
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/teams" element={
-                  <ProtectedRoute requiredRole="auctioneer">
-                    <Layout>
-                      <Suspense fallback={<PageLoadingSpinner />}>
-                        <TeamsPage />
-                      </Suspense>
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/players" element={
-                  <ProtectedRoute requiredRole="auctioneer">
-                    <Layout>
-                      <Suspense fallback={<PageLoadingSpinner />}>
-                        <PlayersPage />
-                      </Suspense>
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/unsold" element={
-                  <ProtectedRoute requiredRole="auctioneer">
-                    <Layout>
-                      <Suspense fallback={<PageLoadingSpinner />}>
-                        <UnsoldPage />
-                      </Suspense>
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/results" element={
-                  <ProtectedRoute requiredRole="auctioneer">
-                    <Layout>
-                      <Suspense fallback={<PageLoadingSpinner />}>
-                        <ResultsPage />
-                      </Suspense>
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/form-builder" element={
-                  <ProtectedRoute requiredRole="auctioneer">
-                    <Layout>
-                      <Suspense fallback={<PageLoadingSpinner />}>
-                        <FormBuilderPage />
-                      </Suspense>
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/settings" element={
-                  <ProtectedRoute requiredRole="auctioneer">
-                    <Layout>
-                      <Suspense fallback={<PageLoadingSpinner />}>
-                        <SettingsPage />
-                      </Suspense>
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-              </Routes>
-            </Suspense>
+              {/* Auctioneer Routes - Accessible by auctioneers only (admin blocked) */}
+              <Route path="/auction" element={
+                <ProtectedRoute requiredRole="auctioneer">
+                  <Layout>
+                    <Suspense fallback={<PageLoadingSpinner />}>
+                      <AuctionPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/teams" element={
+                <ProtectedRoute requiredRole="auctioneer">
+                  <Layout>
+                    <Suspense fallback={<PageLoadingSpinner />}>
+                      <TeamsPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/players" element={
+                <ProtectedRoute requiredRole="auctioneer">
+                  <Layout>
+                    <Suspense fallback={<PageLoadingSpinner />}>
+                      <PlayersPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/unsold" element={
+                <ProtectedRoute requiredRole="auctioneer">
+                  <Layout>
+                    <Suspense fallback={<PageLoadingSpinner />}>
+                      <UnsoldPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/results" element={
+                <ProtectedRoute requiredRole="auctioneer">
+                  <Layout>
+                    <Suspense fallback={<PageLoadingSpinner />}>
+                      <ResultsPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/form-builder" element={
+                <ProtectedRoute requiredRole="auctioneer">
+                  <Layout>
+                    <Suspense fallback={<PageLoadingSpinner />}>
+                      <FormBuilderPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/settings" element={
+                <ProtectedRoute requiredRole="auctioneer">
+                  <Layout>
+                    <Suspense fallback={<PageLoadingSpinner />}>
+                      <SettingsPage />
+                    </Suspense>
+                  </Layout>
+                </ProtectedRoute>
+              } />
+            </Routes>
           </AuctionProvider>
         </AuthProvider>
       </Router>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import { useRoutePreload } from '../hooks/useRoutePreload';
 
 interface BrandingConfig {
   title: string;
@@ -31,6 +32,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
   const { user, logout, refreshUser } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const { preloadRoute } = useRoutePreload();
   const [showLimitsDetails, setShowLimitsDetails] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
@@ -211,6 +213,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                         textShadow: isActive ? '0 0 10px rgba(255, 215, 0, 0.5)' : 'none'
                       }}
                       onMouseEnter={(e) => {
+                        // Preload route on hover for instant navigation
+                        preloadRoute(item.href);
+                        
                         if (!isActive) {
                           e.currentTarget.style.background = 'linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(255, 215, 0, 0.05) 100%)';
                           e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.2)';
@@ -623,6 +628,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <Link
                   key={item.name}
                   to={item.href}
+                  onTouchStart={() => {
+                    // Preload route on touch for instant navigation on mobile
+                    preloadRoute(item.href);
+                  }}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
