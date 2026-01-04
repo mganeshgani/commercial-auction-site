@@ -53,9 +53,14 @@ io.on('connection', (socket) => {
 
   // Join auctioneer-specific room when authenticated
   socket.on('joinAuctioneer', (auctioneerId) => {
+    console.log(`📥 Received joinAuctioneer request from socket ${socket.id} with auctioneerId:`, auctioneerId);
     const roomName = `auctioneer_${auctioneerId}`;
     socket.join(roomName);
-    console.log(`Socket ${socket.id} joined room: ${roomName}`);
+    console.log(`✅ Socket ${socket.id} successfully joined room: ${roomName}`);
+    
+    // Verify the join worked
+    const room = io.sockets.adapter.rooms.get(roomName);
+    console.log(`📊 Room ${roomName} now has ${room ? room.size : 0} client(s)`);
   });
 
   // Leave auctioneer room

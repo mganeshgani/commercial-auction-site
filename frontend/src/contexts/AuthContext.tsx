@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import authService, { User, AuthResponse } from '../services/authService';
+import { connectSocket } from '../services/socket';
 
 interface AuthContextType {
   user: User | null;
@@ -43,9 +44,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const response = await authService.getMe();
         if (response.success && response.data) {
           setUser(response.data.user);
+          // Connect socket after user is loaded
+          connectSocket();
         } else {
           // Invalid token, clear it
           localStorage.removeItem('token');
+          localStorage.removeItem('user');
           setUser(null);
         }
       }
@@ -61,6 +65,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const response = await authService.login(email, password);
     if (response.success && response.data) {
       setUser(response.data.user);
+      // Connect socket after login
+      connectSocket();
     }
     return response;
   };

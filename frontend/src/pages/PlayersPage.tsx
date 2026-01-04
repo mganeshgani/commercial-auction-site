@@ -44,13 +44,20 @@ const PlayersPage: React.FC = () => {
     const socket = initializeSocket();
     let refreshTimeout: NodeJS.Timeout | null = null;
 
-    console.log('🔌 PlayersPage: Setting up socket listeners');
+    console.log('🔌 PlayersPage: Setting up socket listeners', socket.id);
+    console.log('🔌 Socket connected:', socket.connected);
+
+    // Test socket connection
+    socket.on('connect', () => {
+      console.log('✅ Socket connected on PlayersPage:', socket.id);
+    });
 
     // Debounced refresh function to prevent multiple rapid updates
     const debouncedRefresh = () => {
+      console.log('⏱️ Debounced refresh triggered');
       if (refreshTimeout) clearTimeout(refreshTimeout);
       refreshTimeout = setTimeout(() => {
-        console.log('🔄 Refreshing players...');
+        console.log('🔄 Refreshing players NOW...');
         clearCache();
         fetchPlayers();
       }, 300); // 300ms debounce
@@ -58,19 +65,19 @@ const PlayersPage: React.FC = () => {
 
     // Listen for playerAdded event
     socket.on('playerAdded', (newPlayer: Player) => {
-      console.log('✓ Player added via socket:', newPlayer.name, newPlayer);
+      console.log('✅✅✅ PLAYER ADDED EVENT RECEIVED:', newPlayer.name, newPlayer);
       debouncedRefresh();
     });
 
     // Listen for playerUpdated event
     socket.on('playerUpdated', (updatedPlayer: Player) => {
-      console.log('✓ Player updated via socket:', updatedPlayer.name);
+      console.log('✅ Player updated via socket:', updatedPlayer.name);
       debouncedRefresh();
     });
 
     // Listen for playerDeleted event
     socket.on('playerDeleted', (deletedPlayer: Player) => {
-      console.log('✓ Player deleted via socket:', deletedPlayer._id);
+      console.log('✅ Player deleted via socket:', deletedPlayer._id);
       debouncedRefresh();
     });
 
@@ -78,6 +85,7 @@ const PlayersPage: React.FC = () => {
     return () => {
       console.log('🔌 PlayersPage: Cleaning up socket listeners');
       if (refreshTimeout) clearTimeout(refreshTimeout);
+      socket.off('connect');
       socket.off('playerAdded');
       socket.off('playerUpdated');
       socket.off('playerDeleted');

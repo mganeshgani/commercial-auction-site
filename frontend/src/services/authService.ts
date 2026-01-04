@@ -52,6 +52,11 @@ class AuthService {
         localStorage.setItem('token', data.data.token);
       }
 
+      // Store user data for socket authentication
+      if (data.data?.user) {
+        localStorage.setItem('user', JSON.stringify(data.data.user));
+      }
+
       return data;
     } catch (error: any) {
       return {
@@ -84,6 +89,11 @@ class AuthService {
         localStorage.setItem('token', data.data.token);
       }
 
+      // Store user data for socket authentication
+      if (data.data?.user) {
+        localStorage.setItem('user', JSON.stringify(data.data.user));
+      }
+
       return data;
     } catch (error: any) {
       return {
@@ -107,9 +117,11 @@ class AuthService {
       });
 
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
     } catch (error) {
-      // Always clear token even if request fails
+      // Always clear token and user even if request fails
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
     }
   }
 

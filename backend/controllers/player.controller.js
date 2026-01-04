@@ -674,7 +674,15 @@ exports.createPlayer = async (req, res) => {
     
     // Emit socket event for real-time updates (immediate)
     if (io) {
-      io.to(`auctioneer_${req.user._id}`).emit('playerAdded', player);
+      const roomName = `auctioneer_${req.user._id}`;
+      console.log(`📡 Emitting playerAdded to room: ${roomName}`, { name: player.name, regNo: player.regNo });
+      io.to(roomName).emit('playerAdded', player);
+      
+      // Also log all clients in this room
+      const room = io.sockets.adapter.rooms.get(roomName);
+      console.log(`📡 Room ${roomName} has ${room ? room.size : 0} connected clients`);
+    } else {
+      console.error('❌ Socket.io instance not available!');
     }
 
     // Send immediate response
