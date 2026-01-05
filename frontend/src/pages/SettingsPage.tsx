@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { useDisplaySettings, MAX_SELECTABLE_ITEMS, getFieldIcon } from '../hooks/useDisplaySettings';
 
 interface AppConfig {
   branding: {
@@ -20,6 +21,18 @@ const SettingsPage: React.FC = () => {
     title: '',
     subtitle: ''
   });
+
+  // Display settings hook - now dynamic with high priority support
+  const { 
+    displaySettings, 
+    toggleSetting, 
+    getSelectedCount, 
+    getSelectableFields, 
+    getEnabledFields,
+    highPriorityField,
+    setHighPriority,
+    loading: displayLoading 
+  } = useDisplaySettings();
 
   const fetchConfig = useCallback(async () => {
     try {
@@ -385,6 +398,210 @@ const SettingsPage: React.FC = () => {
             </div>
           </div>
         </form>
+
+        {/* Display Settings Section */}
+        <div className="relative overflow-hidden rounded-2xl" style={{
+          background: 'linear-gradient(165deg, rgba(10, 10, 10, 0.98) 0%, rgba(20, 20, 22, 0.95) 50%, rgba(10, 10, 10, 0.98) 100%)',
+          border: '1px solid rgba(212, 175, 55, 0.15)',
+          boxShadow: '0 20px 60px -20px rgba(0, 0, 0, 0.8), 0 0 40px rgba(212, 175, 55, 0.05)'
+        }}>
+          {/* Header */}
+          <div className="px-4 sm:px-6 py-4 border-b" style={{ borderColor: 'rgba(212, 175, 55, 0.1)' }}>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{
+                background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%)',
+                border: '1px solid rgba(212, 175, 55, 0.2)'
+              }}>
+                <svg className="w-4 h-4" fill="none" stroke="#D4AF37" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-lg font-bold" style={{
+                  background: 'linear-gradient(135deg, #FFFFFF 0%, #F0D770 50%, #D4AF37 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}>Player Card Display</h2>
+                <p className="text-[11px] text-slate-500">Choose what details to show on player cards (Auction & Players page)</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Settings Content */}
+          <div className="p-4 sm:p-6 space-y-4">
+            {displayLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
+              </div>
+            ) : (
+              <>
+                {/* Selection Counter */}
+                <div className="flex items-center justify-between p-3 rounded-xl" style={{
+                  background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.08) 0%, rgba(212, 175, 55, 0.02) 100%)',
+                  border: '1px solid rgba(212, 175, 55, 0.15)'
+                }}>
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-xs text-gray-400">Fields selected</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold" style={{ color: '#D4AF37' }}>
+                      {getSelectedCount()}
+                    </span>
+                    <span className="text-xs text-gray-500">/ {MAX_SELECTABLE_ITEMS}</span>
+                  </div>
+                </div>
+
+                {/* Info note about fixed fields */}
+                <div className="p-2.5 rounded-lg flex items-center gap-2" style={{
+                  background: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)'
+                }}>
+                  <svg className="w-4 h-4 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-[11px] text-blue-300/80">Player Name & Photo are always displayed on cards</span>
+                </div>
+
+                {/* Dynamic Selectable Fields */}
+                <div className="space-y-2">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold px-1">
+                    Select up to {MAX_SELECTABLE_ITEMS} fields to display
+                  </p>
+                  {getSelectableFields().map((field) => {
+                    const isSelected = displaySettings[field.fieldName] === true;
+                    const canSelect = isSelected || getSelectedCount() < MAX_SELECTABLE_ITEMS;
+                    
+                    return (
+                      <div
+                        key={field.fieldName}
+                        className={`flex items-center justify-between p-3 rounded-xl transition-all ${!canSelect && !isSelected ? 'opacity-50' : ''}`}
+                        style={{
+                          background: isSelected 
+                            ? 'linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(212, 175, 55, 0.03) 100%)'
+                            : 'rgba(255, 255, 255, 0.02)',
+                          border: isSelected 
+                            ? '1px solid rgba(212, 175, 55, 0.3)'
+                            : '1px solid rgba(255, 255, 255, 0.05)'
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl">{getFieldIcon(field.fieldName, field.fieldType)}</span>
+                          <span className="text-sm font-medium text-gray-300">{field.fieldLabel}</span>
+                        </div>
+                        <button
+                          onClick={() => toggleSetting(field.fieldName)}
+                          disabled={!canSelect && !isSelected}
+                          className={`w-12 h-6 rounded-full relative transition-all duration-300 ${
+                            isSelected
+                              ? 'bg-gradient-to-r from-amber-500 to-yellow-500'
+                              : canSelect 
+                                ? 'bg-gray-700 hover:bg-gray-600' 
+                                : 'bg-gray-800 cursor-not-allowed'
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-lg transition-all duration-300 ${
+                              isSelected ? 'left-6' : 'left-0.5'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Primary Field Selector */}
+                {getEnabledFields().length > 0 && (
+                  <div className="mt-4 p-4 rounded-xl" style={{
+                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.06) 0%, rgba(245, 158, 11, 0.02) 100%)',
+                    border: '1px solid rgba(245, 158, 11, 0.15)'
+                  }}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(245, 158, 11, 0.15)' }}>
+                        <span className="text-amber-400 text-sm">◆</span>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-white">Primary Field</h4>
+                        <p className="text-[10px] text-gray-400">Highlighted with gold accent on all cards</p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* None option */}
+                      <button
+                        onClick={() => setHighPriority(null)}
+                        className={`p-2.5 rounded-lg text-left transition-all duration-200 ${
+                          !highPriorityField 
+                            ? 'ring-2 ring-amber-500/50' 
+                            : 'hover:bg-white/5'
+                        }`}
+                        style={{
+                          background: !highPriorityField 
+                            ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0.04) 100%)'
+                            : 'rgba(255, 255, 255, 0.02)',
+                          border: !highPriorityField 
+                            ? '1px solid rgba(245, 158, 11, 0.3)'
+                            : '1px solid rgba(255, 255, 255, 0.05)'
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm opacity-50">○</span>
+                          <span className="text-xs text-gray-400">None</span>
+                        </div>
+                      </button>
+                      
+                      {/* Enabled fields options */}
+                      {getEnabledFields().map((field) => (
+                        <button
+                          key={field.fieldName}
+                          onClick={() => setHighPriority(field.fieldName)}
+                          className={`p-2.5 rounded-lg text-left transition-all duration-200 ${
+                            highPriorityField === field.fieldName 
+                              ? 'ring-2 ring-amber-500/50' 
+                              : 'hover:bg-white/5'
+                          }`}
+                          style={{
+                            background: highPriorityField === field.fieldName 
+                              ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0.04) 100%)'
+                              : 'rgba(255, 255, 255, 0.02)',
+                            border: highPriorityField === field.fieldName 
+                              ? '1px solid rgba(245, 158, 11, 0.3)'
+                              : '1px solid rgba(255, 255, 255, 0.05)'
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">{getFieldIcon(field.fieldName, '')}</span>
+                            <span className="text-xs text-gray-300 truncate">{field.fieldLabel}</span>
+                            {highPriorityField === field.fieldName && (
+                              <span className="text-amber-400 text-xs ml-auto">◆</span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Info Note */}
+                <div className="flex items-start gap-2 p-3 rounded-lg mt-4" style={{
+                  background: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)'
+                }}>
+                  <svg className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-[11px] text-blue-300/80">
+                    Fields are loaded from your Form Builder configuration. Changes are saved automatically and apply to player cards across Auction, Players, Results, and Unsold pages.
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

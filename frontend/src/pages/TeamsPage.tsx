@@ -298,7 +298,7 @@ const TeamsPage: React.FC = () => {
       ) : (
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {teams.map((team, index) => {
+            {teams.map((team) => {
               const budgetPercentage = getBudgetPercentage(team);
               const spent = (team.budget || 0) - (team.remainingBudget || 0);
               
@@ -345,16 +345,6 @@ const TeamsPage: React.FC = () => {
                                   {team.name.charAt(0)}
                                 </span>
                               )}
-                            </div>
-                            {/* Rank Badge */}
-                            <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold"
-                              style={{
-                                background: 'linear-gradient(135deg, #D4AF37 0%, #A88B2A 100%)',
-                                color: '#000',
-                                boxShadow: '0 3px 10px rgba(212, 175, 55, 0.5)'
-                              }}
-                            >
-                              {index + 1}
                             </div>
                           </div>
 

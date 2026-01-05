@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Player, Team } from '../types';
 import confetti from 'canvas-confetti';
 import { useAuth } from '../contexts/AuthContext';
 import { playerService, teamService, clearCache } from '../services/api';
 import { initializeSocket } from '../services/socket';
 import UnsoldPlayerCard from '../components/unsold/UnsoldPlayerCard';
+import { useDisplaySettings } from '../hooks/useDisplaySettings';
 
 const UnsoldPage: React.FC = () => {
   const { isAuctioneer } = useAuth();
@@ -17,6 +18,10 @@ const UnsoldPage: React.FC = () => {
   const [selectedTeam, setSelectedTeam] = useState<string>('');
 
   const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
+  
+  // Display settings for dynamic fields
+  const { getEnabledFields } = useDisplaySettings();
+  const enabledFields = useMemo(() => getEnabledFields(), [getEnabledFields]);
 
   const fetchUnsoldPlayers = useCallback(async (bypassCache = false) => {
     try {
@@ -221,6 +226,7 @@ const UnsoldPage: React.FC = () => {
                 player={player}
                 isAuctioneer={isAuctioneer}
                 onAuction={handleAuctionClick}
+                enabledFields={enabledFields}
               />
             ))}
           </div>
@@ -263,8 +269,23 @@ const UnsoldPage: React.FC = () => {
                   )}
                   <div>
                     <h3 className="text-base sm:text-lg font-black text-white">{selectedPlayer.name}</h3>
-                    <p className="text-[10px] sm:text-xs text-gray-400">{selectedPlayer.regNo} • {selectedPlayer.class}</p>
-                    <p className="text-[10px] sm:text-xs text-emerald-400 font-bold">{selectedPlayer.position}</p>
+                    {(() => {
+                      const highPriorityField = enabledFields.find(f => f.isHighPriority);
+                      let displayValue = '';
+                      if (highPriorityField) {
+                        const val = (selectedPlayer as any)[highPriorityField.fieldName] || (selectedPlayer.customFields && selectedPlayer.customFields[highPriorityField.fieldName]);
+                        if (val) displayValue = String(val);
+                      }
+                      if (!displayValue && enabledFields.length > 0) {
+                        for (const field of enabledFields) {
+                          const val = (selectedPlayer as any)[field.fieldName] || (selectedPlayer.customFields && selectedPlayer.customFields[field.fieldName]);
+                          if (val) { displayValue = String(val); break; }
+                        }
+                      }
+                      return displayValue ? (
+                        <p className="text-[10px] sm:text-xs text-amber-400 font-bold">{displayValue}</p>
+                      ) : null;
+                    })()}
                   </div>
                 </div>
               </div>

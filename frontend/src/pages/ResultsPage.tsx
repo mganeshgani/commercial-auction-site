@@ -5,6 +5,7 @@ import { initializeSocket } from '../services/socket';
 import { useAuth } from '../contexts/AuthContext';
 import { resultsService, clearCache } from '../services/api';
 import TeamCard from '../components/results/TeamCard';
+import { useDisplaySettings } from '../hooks/useDisplaySettings';
 
 const ResultsPage: React.FC = () => {
   const { isAuctioneer } = useAuth();
@@ -17,6 +18,10 @@ const ResultsPage: React.FC = () => {
   const [newTeamId, setNewTeamId] = useState<string>('');
   
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+  
+  // Display settings for dynamic fields
+  const { getEnabledFields } = useDisplaySettings();
+  const enabledFields = useMemo(() => getEnabledFields(), [getEnabledFields]);
 
   // Memoize stats calculation
   const stats = useMemo(() => {
@@ -128,9 +133,37 @@ const ResultsPage: React.FC = () => {
       clearCache();
       fetchData(false);
     });
-    socket.on('playerUpdated', debouncedFetch);
-    socket.on('teamUpdated', debouncedFetch);
-    socket.on('playerRemovedFromTeam', debouncedFetch);
+    socket.on('playerUpdated', (updatedPlayer: any) => {
+      console.log('🔄 Player updated event received');
+      setPlayers(prevPlayers => prevPlayers.map(p => 
+        p._id === updatedPlayer._id ? updatedPlayer : p
+      ));
+      debouncedFetch();
+    });
+    socket.on('teamUpdated', (updatedTeam: any) => {
+      console.log('🔄 Team updated event received:', updatedTeam.name);
+      // Immediately update the specific team for instant UI feedback
+      setTeams(prevTeams => prevTeams.map(t => 
+        t._id === updatedTeam._id ? updatedTeam : t
+      ));
+    });
+    socket.on('playerRemovedFromTeam', (data: { player: any; team: any }) => {
+      console.log('🔄 Player removed from team event received');
+      // Immediately update the team in state for instant UI refresh
+      if (data.team) {
+        setTeams(prevTeams => prevTeams.map(t => 
+          t._id === data.team._id ? data.team : t
+        ));
+      }
+      // Also update the player in state
+      if (data.player) {
+        setPlayers(prevPlayers => prevPlayers.map(p => 
+          p._id === data.player._id ? data.player : p
+        ));
+      }
+      // Then do a background refresh to ensure consistency
+      debouncedFetch();
+    });
 
     socket.on('disconnect', () => {
       console.log('✗ Results page disconnected');
@@ -325,6 +358,7 @@ const ResultsPage: React.FC = () => {
                 onClick={() => setSelectedTeam(team)}
                 getPositionColor={getPositionColor}
                 getPositionIcon={getPositionIcon}
+                enabledFields={enabledFields}
               />
             ))}
           </div>
@@ -582,7 +616,25 @@ const ResultsPage: React.FC = () => {
                             {/* Player Info */}
                             <div className="flex-1 min-w-0">
                               <h3 className="text-base font-semibold text-white truncate">{player.name}</h3>
-                              <p className="text-xs text-gray-500 mt-0.5">{player.position}</p>
+                              {(() => {
+                                // Get high priority field value or first enabled field
+                                const highPriorityField = enabledFields.find(f => f.isHighPriority);
+                                const p = player as any;
+                                let displayValue = '';
+                                if (highPriorityField) {
+                                  const val = p[highPriorityField.fieldName] || (p.customFields && p.customFields[highPriorityField.fieldName]);
+                                  if (val) displayValue = String(val);
+                                }
+                                if (!displayValue && enabledFields.length > 0) {
+                                  for (const field of enabledFields) {
+                                    const val = p[field.fieldName] || (p.customFields && p.customFields[field.fieldName]);
+                                    if (val) { displayValue = String(val); break; }
+                                  }
+                                }
+                                return displayValue ? (
+                                  <p className={`text-xs mt-0.5 ${highPriorityField ? 'text-amber-400 font-medium' : 'text-gray-500'}`}>{displayValue}</p>
+                                ) : null;
+                              })()}
                               <div className="flex items-center gap-2 mt-1.5">
                                 <span className="text-lg font-medium" style={{ color: '#D4AF37' }}>
                                   ₹{((player.soldAmount || 0) / 1000).toFixed(0)}K

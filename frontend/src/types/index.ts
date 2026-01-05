@@ -9,6 +9,7 @@ export interface Player {
   team: string | null;
   soldAmount: number;
   createdAt: string;
+  customFields?: Record<string, any>;
 }
 
 export interface Team {

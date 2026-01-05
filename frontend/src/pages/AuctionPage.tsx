@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Player, Team } from '../types';
 import SpinWheel from '../components/auction/SpinWheel';
 import PlayerCard from '../components/auction/PlayerCard';
@@ -7,6 +7,7 @@ import TeamSelectionModal from '../components/auction/TeamSelectionModal';
 import { useAuth } from '../contexts/AuthContext';
 import { playerService, teamService, clearCache } from '../services/api';
 import { initializeSocket, requestWakeLock } from '../services/socket';
+import { useDisplaySettings } from '../hooks/useDisplaySettings';
 import '../maisonCelebration.css';
 
 // Connection status indicator component
@@ -55,6 +56,14 @@ const AuctionPage: React.FC = () => {
   // Connection status state for long auction sessions
   const [isConnected, setIsConnected] = useState(false);
   const [lastPing, setLastPing] = useState<number | null>(null);
+  
+  // Display settings from shared hook (settings configured in Settings page)
+  const { getEnabledFields } = useDisplaySettings();
+
+  // Get enabled fields that exist in form builder (for passing to PlayerCard)
+  const enabledFields = useMemo(() => {
+    return getEnabledFields();
+  }, [getEnabledFields]);
 
   // Define fetch functions BEFORE useEffect
   const fetchTeams = useCallback(async () => {
@@ -501,7 +510,7 @@ const AuctionPage: React.FC = () => {
           )}
 
           {showPlayer && currentPlayer && (
-            <div className="overflow-y-auto overflow-x-hidden custom-scrollbar flex-1 min-h-0">
+            <div className="overflow-y-auto overflow-x-hidden custom-scrollbar flex-1 min-h-0 relative">
               <PlayerCard
                 player={currentPlayer}
                 soldAmount={soldAmount}
@@ -510,6 +519,7 @@ const AuctionPage: React.FC = () => {
                 handleUnsoldClick={handleMarkUnsold}
                 loading={false}
                 isAuctioneer={isAuctioneer}
+                enabledFields={enabledFields}
               />
               
               <TeamSelectionModal

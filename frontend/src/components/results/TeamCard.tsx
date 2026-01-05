@@ -1,6 +1,29 @@
 import React from 'react';
 import { Team } from '../../types';
 
+// Enabled field interface
+interface EnabledField {
+  fieldName: string;
+  fieldLabel: string;
+  isHighPriority?: boolean;
+}
+
+// Helper to get field value from player (handles both direct properties and customFields)
+const getPlayerFieldValue = (player: any, fieldName: string): any => {
+  // Check direct property first
+  if (player[fieldName] !== undefined) {
+    return player[fieldName];
+  }
+  // Check customFields
+  if (player.customFields) {
+    if (player.customFields instanceof Map) {
+      return player.customFields.get(fieldName);
+    }
+    return player.customFields[fieldName];
+  }
+  return undefined;
+};
+
 interface TeamCardProps {
   team: Team;
   index: number;
@@ -13,6 +36,7 @@ interface TeamCardProps {
   onClick: () => void;
   getPositionColor: (position: string) => string;
   getPositionIcon: (position: string) => string;
+  enabledFields?: EnabledField[];
 }
 
 const TeamCard = React.memo<TeamCardProps>(({
@@ -25,9 +49,32 @@ const TeamCard = React.memo<TeamCardProps>(({
   teamPlayers,
   onClick,
   getPositionColor,
-  getPositionIcon
+  getPositionIcon,
+  enabledFields = []
 }) => {
   const budgetPercent = parseFloat(budgetUsedPercentage);
+  
+  // Get the high priority field for display
+  const highPriorityField = enabledFields.find(f => f.isHighPriority);
+  
+  // Get display value for a player
+  const getDisplayValue = (player: any): string => {
+    if (highPriorityField) {
+      const value = getPlayerFieldValue(player, highPriorityField.fieldName);
+      if (value !== undefined && value !== null && value !== '') {
+        return String(value);
+      }
+    }
+    // Fallback to first enabled field with a value
+    for (const field of enabledFields) {
+      const value = getPlayerFieldValue(player, field.fieldName);
+      if (value !== undefined && value !== null && value !== '') {
+        return String(value);
+      }
+    }
+    // Final fallback to position
+    return player.position || '';
+  };
   
   return (
     <div
@@ -57,32 +104,20 @@ const TeamCard = React.memo<TeamCardProps>(({
         <div className="relative p-4 pb-3">
           <div className="flex items-center gap-3">
             {/* Team Logo/Initial */}
-            <div className="relative">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%)',
-                  border: '1px solid rgba(212, 175, 55, 0.25)',
-                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)'
-                }}
-              >
-                {team.logoUrl ? (
-                  <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xl font-light tracking-tight" style={{ color: '#D4AF37' }}>
-                    {team.name.charAt(0)}
-                  </span>
-                )}
-              </div>
-              {/* Rank Badge */}
-              <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
-                style={{
-                  background: 'linear-gradient(135deg, #D4AF37 0%, #B8860B 100%)',
-                  color: '#000',
-                  boxShadow: '0 2px 8px rgba(212, 175, 55, 0.4)'
-                }}
-              >
-                {index + 1}
-              </div>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
+              style={{
+                background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%)',
+                border: '1px solid rgba(212, 175, 55, 0.25)',
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)'
+              }}
+            >
+              {team.logoUrl ? (
+                <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xl font-light tracking-tight" style={{ color: '#D4AF37' }}>
+                  {team.name.charAt(0)}
+                </span>
+              )}
             </div>
 
             {/* Team Name */}
@@ -140,23 +175,30 @@ const TeamCard = React.memo<TeamCardProps>(({
           {/* Players List - Minimal */}
           {teamPlayers.length > 0 ? (
             <div className="space-y-1.5 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
-              {teamPlayers.map((player) => (
-                <div key={player._id}
-                  className="flex items-center justify-between py-2 px-3 rounded-lg transition-all duration-200 hover:bg-white/[0.03]"
-                  style={{ background: 'rgba(255,255,255,0.02)' }}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="text-sm opacity-80">{getPositionIcon(player.position)}</span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{player.name}</p>
-                      <p className="text-[10px] text-gray-500">{player.position}</p>
+              {teamPlayers.map((player) => {
+                const displayValue = getDisplayValue(player);
+                return (
+                  <div key={player._id}
+                    className="flex items-center justify-between py-2 px-3 rounded-lg transition-all duration-200 hover:bg-white/[0.03]"
+                    style={{ background: 'rgba(255,255,255,0.02)' }}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-sm opacity-80">{getPositionIcon(player.position)}</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{player.name}</p>
+                        {displayValue && (
+                          <p className={`text-[10px] truncate ${highPriorityField ? 'text-purple-400 font-medium' : 'text-gray-500'}`}>
+                            {displayValue}
+                          </p>
+                        )}
+                      </div>
                     </div>
+                    <p className="text-sm font-semibold flex-shrink-0" style={{ color: '#D4AF37' }}>
+                      ₹{((player.soldAmount || 0) / 1000).toFixed(0)}K
+                    </p>
                   </div>
-                  <p className="text-sm font-semibold flex-shrink-0" style={{ color: '#D4AF37' }}>
-                    ₹{((player.soldAmount || 0) / 1000).toFixed(0)}K
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="py-6 text-center">

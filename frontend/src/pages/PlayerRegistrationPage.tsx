@@ -257,13 +257,13 @@ const PlayerRegistrationPage: React.FC = () => {
           <div className="absolute -inset-2 bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 rounded-[2rem] blur-xl opacity-20 animate-pulse" />
 
           {/* Main Card */}
-          <div className="relative bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-2xl border border-amber-500/20 rounded-3xl shadow-[0_32px_128px_rgba(251,191,36,0.15)] overflow-hidden">
+          <div className="relative bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-2xl border border-amber-500/20 rounded-3xl shadow-[0_32px_128px_rgba(251,191,36,0.15)] overflow-hidden flex flex-col max-h-[calc(100vh-60px)]">
             
             {/* Decorative Top Border */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent z-10" />
 
-            {/* Ultra-Compact Header */}
-            <div className="relative px-4 sm:px-6 pt-3 pb-2 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50">
+            {/* Ultra-Compact Header - Fixed at top */}
+            <div className="relative flex-shrink-0 px-4 sm:px-6 pt-3 pb-2 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50">
               <div className="text-center space-y-1">
                 <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 via-amber-600 to-yellow-600 shadow-lg shadow-amber-500/40">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -288,11 +288,11 @@ const PlayerRegistrationPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Form Body */}
-            <div className="relative">
-              {/* Error Message */}
+            {/* Form Body - Scrollable middle section */}
+            <div className="relative flex-1 overflow-hidden flex flex-col min-h-0">
+              {/* Error Message - Fixed position in the scrollable area */}
               {message && (
-                <div className="mx-4 sm:mx-6 mt-2.5">
+                <div className="flex-shrink-0 mx-4 sm:mx-6 mt-2.5 mb-1">
                   <div className="p-2.5 rounded-lg flex items-start gap-2 text-xs bg-red-500/10 border border-red-500/30 text-red-200">
                     <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
@@ -303,7 +303,7 @@ const PlayerRegistrationPage: React.FC = () => {
               )}
 
               {/* Scrollable Content */}
-              <div className="px-4 sm:px-6 py-3 max-h-[calc(100vh-280px)] sm:max-h-[calc(100vh-260px)] lg:max-h-[calc(100vh-240px)] overflow-y-auto luxury-scrollbar">
+              <div className="flex-1 px-4 sm:px-6 py-3 overflow-y-auto luxury-scrollbar">
                 <form onSubmit={handleSubmit} className="space-y-4 pb-2">
                   {loadingForm ? (
                     <div className="text-center py-8">
@@ -498,9 +498,10 @@ const PlayerRegistrationPage: React.FC = () => {
                   )}
                 </form>
               </div>
+            </div>
 
-              {/* Action Bar */}
-              <div className="sticky bottom-0 left-0 right-0 px-4 sm:px-6 py-2.5 bg-gradient-to-t from-slate-900 via-slate-900 to-slate-900/95 backdrop-blur-xl border-t border-amber-500/20 shadow-[0_-6px_24px_rgba(0,0,0,0.5)]">
+            {/* Action Bar - Fixed at bottom */}
+            <div className="flex-shrink-0 px-4 sm:px-6 py-2.5 bg-gradient-to-t from-slate-900 via-slate-900 to-slate-900/95 backdrop-blur-xl border-t border-amber-500/20 shadow-[0_-6px_24px_rgba(0,0,0,0.5)]">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
                   <button
                     type="button"
@@ -528,7 +529,6 @@ const PlayerRegistrationPage: React.FC = () => {
                     )}
                   </button>
                 </div>
-              </div>
             </div>
 
             {/* Footer */}

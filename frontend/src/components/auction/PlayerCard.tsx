@@ -1,13 +1,21 @@
 import React, { memo, useMemo } from 'react';
 
+interface EnabledField {
+  fieldName: string;
+  fieldLabel: string;
+  fieldType?: string;
+}
+
 interface PlayerCardProps {
   player: {
     _id: string;
     name: string;
-    regNo: string;
-    class: string;
-    position: string;
+    regNo?: string;
+    class?: string;
+    position?: string;
     photoUrl?: string;
+    customFields?: Record<string, any>;
+    [key: string]: any;
   };
   soldAmount: number;
   setSoldAmount: (amount: number) => void;
@@ -15,15 +23,32 @@ interface PlayerCardProps {
   handleUnsoldClick: () => void;
   loading: boolean;
   isAuctioneer?: boolean;
+  enabledFields?: EnabledField[];
 }
 
 const getPositionColor = (position: string) => {
-  const pos = position.toLowerCase();
+  const pos = (position || '').toLowerCase();
   if (pos === 'batsman') return { gradient: 'from-amber-400 to-orange-600', light: '#fbbf24', dark: '#ea580c' };
   if (pos === 'bowler') return { gradient: 'from-blue-400 to-indigo-600', light: '#60a5fa', dark: '#4f46e5' };
   if (pos === 'all-rounder') return { gradient: 'from-green-400 to-emerald-600', light: '#4ade80', dark: '#059669' };
   if (pos === 'wicket-keeper') return { gradient: 'from-purple-400 to-pink-600', light: '#c084fc', dark: '#db2777' };
   return { gradient: 'from-gray-400 to-gray-600', light: '#9ca3af', dark: '#4b5563' };
+};
+
+// Helper to get field value from player (handles both direct properties and customFields)
+const getPlayerFieldValue = (player: any, fieldName: string): any => {
+  // Check direct property first
+  if (player[fieldName] !== undefined) {
+    return player[fieldName];
+  }
+  // Check customFields
+  if (player.customFields) {
+    if (player.customFields instanceof Map) {
+      return player.customFields.get(fieldName);
+    }
+    return player.customFields[fieldName];
+  }
+  return undefined;
 };
 
 const PlayerCard: React.FC<PlayerCardProps> = memo(({
@@ -34,9 +59,22 @@ const PlayerCard: React.FC<PlayerCardProps> = memo(({
   handleUnsoldClick,
   loading,
   isAuctioneer = true,
+  enabledFields = [],
 }) => {
-  const positionColors = useMemo(() => getPositionColor(player.position), [player.position]);
+  const positionColors = useMemo(() => getPositionColor(player.position || ''), [player.position]);
   const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
+
+  // Get field values for enabled fields only (includes isHighPriority flag)
+  const fieldsToShow = useMemo(() => {
+    return enabledFields
+      .map(field => ({
+        fieldName: field.fieldName,
+        fieldLabel: field.fieldLabel,
+        isHighPriority: (field as any).isHighPriority || false,
+        value: getPlayerFieldValue(player, field.fieldName)
+      }))
+      .filter(f => f.value !== undefined && f.value !== null && f.value !== '');
+  }, [enabledFields, player]);
 
   return (
     <div className="premium-player-card-wrapper">
@@ -286,7 +324,7 @@ const PlayerCard: React.FC<PlayerCardProps> = memo(({
         <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 md:gap-8 items-center lg:items-start">
           {/* Left Section: Photo and Info Cards */}
           <div className="flex-shrink-0 flex flex-col items-center gap-3 sm:gap-4">
-            {/* Photo with Rotating Ring */}
+            {/* Photo with Rotating Ring - Always shown */}
             <div className="relative photo-reveal">
               <div className="absolute inset-0 rotating-ring">
                 <div 
@@ -303,31 +341,37 @@ const PlayerCard: React.FC<PlayerCardProps> = memo(({
                 />
               </div>
               
-              {/* Position Badge Floating Below */}
-              <div className="badge-entrance mt-3 sm:mt-4">
-                <div
-                  className={`px-4 sm:px-6 py-1.5 sm:py-2 rounded-full bg-gradient-to-r ${positionColors.gradient} text-white font-bold text-xs sm:text-sm shadow-lg`}
-                >
-                  {player.position}
-                </div>
-              </div>
             </div>
 
-            {/* Info Cards Stacked */}
-            <div className="flex flex-col gap-2 sm:gap-3 w-full content-fade-1">
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-3 border border-amber-500/20">
-                <div className="text-[10px] sm:text-xs text-amber-400/70 font-medium mb-0.5 sm:mb-1">Class</div>
-                <div className="text-white font-bold text-sm sm:text-base">{player.class}</div>
+            {/* Selected Fields from Settings (shown without labels) */}
+            {fieldsToShow.length > 0 && (
+              <div className="flex flex-col gap-2 sm:gap-3 w-full content-fade-1">
+                {fieldsToShow.map((field) => (
+                  <div 
+                    key={field.fieldName} 
+                    className={`backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-3 border transition-all duration-300 ${
+                      field.isHighPriority 
+                        ? 'bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-amber-500/20 border-amber-400/40' 
+                        : 'bg-slate-800/50 border-amber-500/20'
+                    }`}
+                  >
+                    <div className={`font-bold text-sm sm:text-base text-center ${
+                      field.isHighPriority ? 'text-amber-200' : 'text-white'
+                    }`}>
+                      {String(field.value)}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            )}
           </div>
 
           {/* Right Section: Name, Amount Input, and Action Buttons */}
           <div className="flex-1 flex flex-col justify-center gap-4 sm:gap-6 w-full">
-            {/* Player Name */}
+            {/* Player Name - Always shown */}
             <div className="content-fade-2 text-center lg:text-left">
               <h1 
-                className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent mb-1 sm:mb-2"
+                className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent mb-2 sm:mb-3 leading-tight pb-1"
                 style={{ 
                   textShadow: '0 0 30px rgba(251, 191, 36, 0.5)',
                   fontFamily: 'Georgia, serif'

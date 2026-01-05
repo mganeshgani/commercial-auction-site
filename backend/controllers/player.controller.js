@@ -610,16 +610,24 @@ exports.createPlayer = async (req, res) => {
       }
     }
 
-    const { name, regNo, class: playerClass, position } = req.body;
+    const { name, regNo, class: playerClass, position, ...otherFields } = req.body;
 
-    console.log('Creating player:', { name, regNo, playerClass, position, hasFile: !!req.file });
+    console.log('Creating player:', { name, regNo, playerClass, position, otherFields, hasFile: !!req.file });
 
-    // Validate required fields
-    if (!name || !playerClass || !position) {
+    // Validate required field - only name is truly required
+    if (!name) {
       return res.status(400).json({ 
-        error: 'Name, class, and position are required' 
+        error: 'Player name is required' 
       });
     }
+
+    // Build custom fields from any extra fields sent
+    const customFields = new Map();
+    Object.keys(otherFields).forEach(key => {
+      if (otherFields[key]) {
+        customFields.set(key, otherFields[key]);
+      }
+    });
 
     // Auto-generate regNo if not provided
     let finalRegNo = regNo;
@@ -682,9 +690,10 @@ exports.createPlayer = async (req, res) => {
     const player = new Player({
       name,
       regNo: finalRegNo,
-      class: playerClass,
-      position,
+      class: playerClass || 'N/A',
+      position: position || 'N/A',
       photoUrl: tempPhotoUrl,
+      customFields,
       auctioneer: req.user._id,
       status: 'available'
     });

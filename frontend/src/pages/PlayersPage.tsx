@@ -4,9 +4,11 @@ import axios from 'axios';
 import { Player } from '../types';
 import RegistrationLinkGenerator from '../components/RegistrationLinkGenerator';
 import EditPlayerModal from '../components/EditPlayerModal';
+import PlayerDetailModal from '../components/PlayerDetailModal';
 import { useAuth } from '../contexts/AuthContext';
 import { playerService, clearCache } from '../services/api';
 import { initializeSocket } from '../services/socket';
+import { useDisplaySettings } from '../hooks/useDisplaySettings';
 
 const PlayersPage: React.FC = () => {
   const { isAuctioneer, user, refreshUser } = useAuth();
@@ -15,7 +17,24 @@ const PlayersPage: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'available' | 'sold' | 'unsold'>('all');
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
+  
+  // Display settings from shared hook (now dynamic with form builder fields)
+  const { getEnabledFields } = useDisplaySettings();
+  
+  // Memoize enabled fields to avoid unnecessary re-renders
+  const enabledFields = useMemo(() => getEnabledFields(), [getEnabledFields]);
+
+  // Helper function to get player field value (supports both core fields and custom fields)
+  const getPlayerFieldValue = (player: Player, fieldName: string): any => {
+    // Core fields are direct properties
+    if (['name', 'regNo', 'class', 'position', 'photoUrl', 'status', 'soldAmount'].includes(fieldName)) {
+      return (player as any)[fieldName];
+    }
+    // Custom fields from form builder are in customFields
+    return player.customFields?.[fieldName];
+  };
 
   const fetchPlayers = useCallback(async (bypassCache = false) => {
     setLoading(true);
@@ -353,13 +372,15 @@ const PlayersPage: React.FC = () => {
                   key={player._id}
                   className="group relative"
                 >
-                  {/* Compact Premium Card */}
-                  <div className="relative overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.02]"
+                  {/* Compact Premium Card - Clickable */}
+                  <div 
+                    className="relative overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer"
                     style={{
                       background: 'linear-gradient(165deg, #0a0a0a 0%, #141414 40%, #0d0d0d 100%)',
                       border: '1px solid rgba(212, 175, 55, 0.12)',
                       boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.8)'
                     }}
+                    onClick={() => setSelectedPlayer(player)}
                   >
                     {/* Ambient Glow Effect */}
                     <div className="absolute -top-16 -right-16 w-32 h-32 rounded-full opacity-0 group-hover:opacity-30 blur-2xl transition-all duration-500"
@@ -389,7 +410,7 @@ const PlayersPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Player Photo Section */}
+                    {/* Player Photo Section - Always shown */}
                     <div className="relative pt-4 pb-2 flex justify-center">
                       <div className="relative">
                         {player.photoUrl && player.photoUrl.trim() !== '' ? (
@@ -431,22 +452,36 @@ const PlayersPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Player Info */}
+                    {/* Player Info - Name is always shown */}
                     <div className="text-center px-3 pb-2">
                       <h3 className="text-base font-semibold tracking-tight text-white truncate group-hover:text-amber-50 transition-colors">
                         {player.name}
                       </h3>
-                      <p className="text-[10px] text-gray-500 font-medium tracking-wide">{player.regNo}</p>
                     </div>
 
-                    {/* Player Details */}
-                    <div className="px-3 pb-2 space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-gray-500">{player.class}</span>
-                        <span className="text-gray-400">{player.position}</span>
+                    {/* All Selected Fields from Settings (without labels, high priority highlighted) */}
+                    {enabledFields.length > 0 && (
+                      <div className="px-3 pb-2">
+                        <div className="flex items-center justify-between text-[11px]">
+                          {enabledFields.slice(0, 2).map((field) => {
+                            const value = getPlayerFieldValue(player, field.fieldName);
+                            if (!value) return null;
+                            return (
+                              <span 
+                                key={field.fieldName} 
+                                className={field.isHighPriority ? 'text-amber-400 font-semibold' : 'text-gray-400'}
+                              >
+                                {value}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </div>
+                    )}
 
-                      {player.soldAmount && (
+                    {/* Sold Amount - Always show if player is sold */}
+                    {player.soldAmount && (
+                      <div className="px-3 pb-2">
                         <div className="flex items-center justify-center rounded-md px-2 py-1.5"
                           style={{
                             background: 'rgba(16, 185, 129, 0.08)',
@@ -457,14 +492,17 @@ const PlayersPage: React.FC = () => {
                             ₹{player.soldAmount >= 100000 ? `${(player.soldAmount / 100000).toFixed(1)}L` : `${(player.soldAmount / 1000).toFixed(0)}K`}
                           </span>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                     {/* Action Buttons - Only for Auctioneers */}
                     {isAuctioneer && (
-                      <div className="px-3 pb-3 flex gap-2">
+                      <div className="px-3 pb-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
                         <button
-                          onClick={() => setEditingPlayer(player)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingPlayer(player);
+                          }}
                           className="flex-1 py-2 rounded-lg font-medium text-xs transition-all duration-200 flex items-center justify-center gap-1.5"
                           style={{
                             background: 'rgba(59, 130, 246, 0.1)',
@@ -478,7 +516,10 @@ const PlayersPage: React.FC = () => {
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDeletePlayer(player._id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeletePlayer(player._id);
+                          }}
                           className="flex-1 py-2 rounded-lg font-medium text-xs transition-all duration-200 flex items-center justify-center gap-1.5"
                           style={{
                             background: 'rgba(239, 68, 68, 0.1)',
@@ -531,6 +572,14 @@ const PlayersPage: React.FC = () => {
             refreshUser(); // Update user limits
             setShowAddModal(false);
           }}
+        />
+      )}
+
+      {/* Player Detail Modal */}
+      {selectedPlayer && (
+        <PlayerDetailModal
+          player={selectedPlayer}
+          onClose={() => setSelectedPlayer(null)}
         />
       )}
 
