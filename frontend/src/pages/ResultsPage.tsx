@@ -120,17 +120,6 @@ const ResultsPage: React.FC = () => {
       console.log('✓ Results page connected to socket');
     });
 
-    // Debounced fetch for socket events (no loading state)
-    let fetchTimeout: NodeJS.Timeout | null = null;
-    const debouncedFetch = () => {
-      if (fetchTimeout) clearTimeout(fetchTimeout);
-      fetchTimeout = setTimeout(() => {
-        console.log('🔄 Background update triggered');
-        clearCache();
-        fetchData(false); // Fetch fresh data without loading
-      }, 300);
-    };
-
     socket.on('playerSold', (data: any) => {
       // Update in-place: move player to sold and update team
       const soldPlayer = data?.player || data;
@@ -180,7 +169,6 @@ const ResultsPage: React.FC = () => {
     });
     
     return () => {
-      if (fetchTimeout) clearTimeout(fetchTimeout);
       socket.off('connect');
       socket.off('playerSold');
       socket.off('playerMarkedUnsold');

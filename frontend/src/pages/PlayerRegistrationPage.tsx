@@ -38,7 +38,7 @@ const PlayerRegistrationPage: React.FC = () => {
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoUploadedUrl, setPhotoUploadedUrl] = useState<string>('');
-  const [photoUploadError, setPhotoUploadError] = useState<string>('');
+  const [, setPhotoUploadError] = useState<string>('');
   const photoAbortRef = useRef<AbortController | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);

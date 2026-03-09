@@ -117,17 +117,6 @@ const AuctionPage: React.FC = () => {
       setLastPing(data.latency);
     });
 
-    // OPTIMIZED: Debounce socket events to prevent fetch spam
-    let teamFetchTimeout: NodeJS.Timeout | null = null;
-    const debouncedTeamFetch = () => {
-      if (teamFetchTimeout) clearTimeout(teamFetchTimeout);
-      teamFetchTimeout = setTimeout(() => {
-        console.log('🔄 Fetching teams (debounced)');
-        clearCache();
-        fetchTeams();
-      }, 300);
-    };
-
     socket.on('playerUpdated', (updatedPlayer: Player) => {
       // Update available count in-place based on status change
       if (updatedPlayer.status === 'sold' || updatedPlayer.status === 'unsold') {
@@ -161,7 +150,6 @@ const AuctionPage: React.FC = () => {
     });
 
     return () => {
-      if (teamFetchTimeout) clearTimeout(teamFetchTimeout);
       // Properly clean up ALL socket listeners
       socket.off('connect');
       socket.off('heartbeat_ack');

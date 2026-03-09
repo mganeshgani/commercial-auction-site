@@ -53,18 +53,6 @@ const UnsoldPage: React.FC = () => {
       console.log('✓ Unsold page connected to socket');
     });
 
-    // Debounced fetch for socket events (background updates without loading state)
-    let fetchTimeout: NodeJS.Timeout | null = null;
-    const debouncedFetch = () => {
-      if (fetchTimeout) clearTimeout(fetchTimeout);
-      fetchTimeout = setTimeout(() => {
-        console.log('🔄 Unsold page: Background update triggered');
-        clearCache();
-        fetchUnsoldPlayers(true); // Bypass cache
-        fetchTeams(true);
-      }, 300);
-    };
-
     // Listen to relevant events — update state in-place from payloads
     socket.on('playerAdded', (newPlayer: any) => {
       // A newly added player won't be unsold — ignore
@@ -117,7 +105,6 @@ const UnsoldPage: React.FC = () => {
     });
 
     return () => {
-      if (fetchTimeout) clearTimeout(fetchTimeout);
       socket.off('connect');
       socket.off('playerAdded');
       socket.off('playerDeleted');
