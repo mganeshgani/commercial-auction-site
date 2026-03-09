@@ -5,7 +5,7 @@ import PlayerCard from '../components/auction/PlayerCard';
 import TeamCard from '../components/auction/TeamCard';
 import TeamSelectionModal from '../components/auction/TeamSelectionModal';
 import { useAuth } from '../contexts/AuthContext';
-import { playerService, teamService, clearCache } from '../services/api';
+import { playerService, teamService, getStaleCached, clearCache } from '../services/api';
 import { initializeSocket, requestWakeLock } from '../services/socket';
 import { useDisplaySettings } from '../hooks/useDisplaySettings';
 import '../maisonCelebration.css';
@@ -70,8 +70,7 @@ const AuctionPage: React.FC = () => {
   // Define fetch functions BEFORE useEffect
   const fetchTeams = useCallback(async () => {
     try {
-      clearCache();
-      const data = await teamService.getAllTeams(false);
+      const data = await teamService.getAllTeams(true);
       setTeams(data);
     } catch (error) {
       console.error('Error fetching teams:', error);
@@ -80,7 +79,7 @@ const AuctionPage: React.FC = () => {
 
   const fetchAvailableCount = useCallback(async () => {
     try {
-      const data = await playerService.getAllPlayers(false);
+      const data = await playerService.getAllPlayers(true);
       const available = data.filter((p: Player) => p.status === 'available').length;
       setAvailableCount(available);
     } catch (error) {
@@ -95,6 +94,14 @@ const AuctionPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // Show stale cached data instantly while revalidating
+    const staleTeams = getStaleCached('teams:all');
+    if (staleTeams) setTeams(staleTeams);
+    const stalePlayers = getStaleCached('players:all');
+    if (stalePlayers) {
+      setAvailableCount(stalePlayers.filter((p: Player) => p.status === 'available').length);
+    }
+
     fetchTeams();
     fetchAvailableCount();
     

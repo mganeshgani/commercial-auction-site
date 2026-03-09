@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import { adminService, getStaleCached } from '../services/api';
 
 interface DashboardStats {
   totalAuctioneers: number;
@@ -33,8 +33,7 @@ interface Auctioneer {
 
 const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
-  const [stats, setStats] = useState<DashboardStats>({
+  const [stats, setStats] = useState<DashboardStats>(() => getStaleCached('admin:stats') || {
     totalAuctioneers: 0,
     activeAuctioneers: 0,
     inactiveAuctioneers: 0,
@@ -42,34 +41,28 @@ const AdminDashboard: React.FC = () => {
     totalPlayers: 0,
     totalTeams: 0,
   });
-  const [recentAuctioneers, setRecentAuctioneers] = useState<Auctioneer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [recentAuctioneers, setRecentAuctioneers] = useState<Auctioneer[]>(() => {
+    const cached = getStaleCached('admin:auctioneers');
+    return cached ? cached.slice(0, 5) : [];
+  });
+  const [loading, setLoading] = useState(() => !getStaleCached('admin:stats'));
 
   const fetchData = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      const [statsRes, auctioneersRes] = await Promise.all([
-        axios.get(`${API_URL}/admin/stats`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        axios.get(`${API_URL}/admin/auctioneers`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+      const [statsData, auctioneersData] = await Promise.all([
+        adminService.getStats(),
+        adminService.getAuctioneers(),
       ]);
-
-      if (statsRes.data?.data) {
-        setStats(statsRes.data.data);
-      }
-      if (auctioneersRes.data?.data && Array.isArray(auctioneersRes.data.data)) {
-        setRecentAuctioneers(auctioneersRes.data.data.slice(0, 5));
+      setStats(statsData);
+      if (Array.isArray(auctioneersData)) {
+        setRecentAuctioneers(auctioneersData.slice(0, 5));
       }
     } catch (error: any) {
       console.error('Failed to fetch dashboard data:', error);
-      console.error('Error details:', error.response?.data);
     } finally {
       setLoading(false);
     }
-  }, [API_URL]);
+  }, []);
 
   useEffect(() => {
     fetchData();

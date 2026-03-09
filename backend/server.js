@@ -199,6 +199,15 @@ app.use(compression({
   }
 }));
 
+// Cache-Control headers for GET API responses (SWR-friendly)
+app.use('/api', (req, res, next) => {
+  if (req.method === 'GET') {
+    // Allow browser/CDN to cache for 10s, serve stale for 60s while revalidating
+    res.set('Cache-Control', 'public, max-age=10, stale-while-revalidate=60');
+  }
+  next();
+});
+
 // Add response time tracking header
 app.use((req, res, next) => {
   const start = Date.now();

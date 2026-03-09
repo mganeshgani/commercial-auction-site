@@ -3,16 +3,16 @@ import axios from 'axios';
 import { Team, Player } from '../types';
 import { initializeSocket } from '../services/socket';
 import { useAuth } from '../contexts/AuthContext';
-import { resultsService, clearCache } from '../services/api';
+import { resultsService, clearCache, getStaleCached } from '../services/api';
 import TeamCard from '../components/results/TeamCard';
 import { useDisplaySettings } from '../hooks/useDisplaySettings';
 import { formatCurrency } from '../utils/formatters';
 
 const ResultsPage: React.FC = () => {
   const { isAuctioneer } = useAuth();
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [teams, setTeams] = useState<Team[]>(() => getStaleCached('results:data')?.teams || []);
+  const [players, setPlayers] = useState<Player[]>(() => getStaleCached('results:data')?.players || []);
+  const [loading, setLoading] = useState(() => !getStaleCached('results:data'));
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [playerToDelete, setPlayerToDelete] = useState<Player | null>(null);
   const [playerToChangeTeam, setPlayerToChangeTeam] = useState<Player | null>(null);
@@ -93,16 +93,11 @@ const ResultsPage: React.FC = () => {
 
   const fetchData = useCallback(async (useCache = true) => {
     try {
-      console.log('📊 Fetching results data...');
       const data = await resultsService.getResultsData(useCache);
-      
-      console.log('✅ Teams fetched:', data.teams.length);
-      console.log('✅ Players fetched:', data.players.length);
-      
       setTeams(data.teams);
       setPlayers(data.players);
     } catch (error) {
-      console.error('❌ Error fetching data:', error);
+      console.error('Error fetching data:', error);
     }
   }, []);
 

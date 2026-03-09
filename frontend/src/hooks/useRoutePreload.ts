@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { playerService, teamService, resultsService, adminService } from '../services/api';
 
 // Route component mapping for prefetching
 const routeComponentMap: Record<string, () => Promise<any>> = {
@@ -13,24 +14,34 @@ const routeComponentMap: Record<string, () => Promise<any>> = {
   '/admin/auctioneers': () => import('../pages/AuctioneersPage'),
 };
 
+// Data prefetch mapping — warm the cache before navigation
+const routeDataPrefetchMap: Record<string, () => void> = {
+  '/auction': () => { teamService.getAllTeams(); playerService.getAllPlayers(); },
+  '/teams': () => { teamService.getAllTeams(); },
+  '/players': () => { playerService.getAllPlayers(); },
+  '/unsold': () => { playerService.getUnsoldPlayers(); teamService.getAllTeams(); },
+  '/results': () => { resultsService.getResultsData(); },
+  '/admin': () => { adminService.getStats(); adminService.getAuctioneers(); },
+  '/admin/auctioneers': () => { adminService.getAuctioneers(); },
+};
+
 // Track which routes have been preloaded
 const preloadedRoutes = new Set<string>();
 
 export const useRoutePreload = () => {
   const preloadRoute = useCallback((path: string) => {
-    // Don't preload if already preloaded
-    if (preloadedRoutes.has(path)) {
-      return;
-    }
+    // Prefetch data on every hover (cache will deduplicate if fresh)
+    const dataLoader = routeDataPrefetchMap[path];
+    if (dataLoader) dataLoader();
+
+    // Don't re-preload JS bundle if already done
+    if (preloadedRoutes.has(path)) return;
 
     const loader = routeComponentMap[path];
     if (loader) {
-      // Preload the component
       loader().then(() => {
         preloadedRoutes.add(path);
-      }).catch(() => {
-        // Silently fail - component will load normally on navigation
-      });
+      }).catch(() => {});
     }
   }, []);
 

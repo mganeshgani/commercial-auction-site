@@ -9,13 +9,13 @@ import EditPlayerModal from '../components/EditPlayerModal';
 import PlayerDetailModal from '../components/PlayerDetailModal';
 import { useAuth } from '../contexts/AuthContext';
 import ConfirmModal from '../components/ConfirmModal';
-import { playerService, clearCache } from '../services/api';
+import { playerService, clearCache, getStaleCached } from '../services/api';
 import { initializeSocket } from '../services/socket';
 
 const PlayersPage: React.FC = () => {
   const { isAuctioneer, user, refreshUser } = useAuth();
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [players, setPlayers] = useState<Player[]>(() => getStaleCached('players:all') || []);
+  const [loading, setLoading] = useState(() => !getStaleCached('players:all'));
   const [filter, setFilter] = useState<'all' | 'available' | 'sold' | 'unsold'>('all');
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -24,16 +24,9 @@ const PlayersPage: React.FC = () => {
   const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
 
   const fetchPlayers = useCallback(async (bypassCache = false) => {
-    setLoading(true);
     try {
-      const data = await playerService.getAllPlayers(!bypassCache); // Use cache unless bypassing
+      const data = await playerService.getAllPlayers(!bypassCache);
       setPlayers(data);
-      
-      // Debug: Log first player's photo URL to check conversion
-      if (data.length > 0 && data[0].photoUrl) {
-        console.log('✓ Sample Photo URL:', data[0].photoUrl);
-        console.log('✓ Player Name:', data[0].name);
-      }
     } catch (error) {
       console.error('Error fetching players:', error);
     } finally {

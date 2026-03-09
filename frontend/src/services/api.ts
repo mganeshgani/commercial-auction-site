@@ -39,35 +39,36 @@ api.interceptors.response.use(
   }
 );
 
-// Enhanced in-memory cache with TTL and request deduplication
+// Stale-While-Revalidate cache with request deduplication
 interface CacheEntry {
   data: any;
   timestamp: number;
-  promise?: Promise<any>;
 }
 
 const cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 10000; // 10 seconds - reduced for faster updates
-const REALTIME_CACHE_TTL = 5000; // 5 seconds for real-time data
+const CACHE_TTL = 30000; // 30 seconds fresh (sockets handle real-time)
+const REALTIME_CACHE_TTL = 15000; // 15 seconds for player data
 const pendingRequests = new Map<string, Promise<any>>();
 
-// Track if cache was recently cleared (within 2 seconds)
-let lastCacheClear = 0;
-const CACHE_CLEAR_GRACE_PERIOD = 2000;
+// Invalidation timestamp — entries older than this are stale (but still usable)
+let cacheInvalidatedAt = 0;
 
 const getCached = (key: string, customTTL?: number) => {
-  // If cache was recently cleared, don't return cached data
-  if (Date.now() - lastCacheClear < CACHE_CLEAR_GRACE_PERIOD) {
-    return null;
-  }
-  
   const entry = cache.get(key);
+  if (!entry) return null;
   const ttl = customTTL || (key.includes('players') ? REALTIME_CACHE_TTL : CACHE_TTL);
-  if (entry && Date.now() - entry.timestamp < ttl) {
+  // If entry was set before last invalidation, treat as expired
+  const effectiveTs = entry.timestamp < cacheInvalidatedAt ? 0 : entry.timestamp;
+  if (Date.now() - effectiveTs < ttl) {
     return entry.data;
   }
-  cache.delete(key);
   return null;
+};
+
+// Returns ANY cached data regardless of freshness — for instant page display
+export const getStaleCached = (key: string): any | null => {
+  const entry = cache.get(key);
+  return entry?.data ?? null;
 };
 
 const setCache = (key: string, data: any) => {
@@ -76,30 +77,24 @@ const setCache = (key: string, data: any) => {
 
 // Deduplicate concurrent requests
 const deduplicateRequest = async <T>(key: string, requestFn: () => Promise<T>): Promise<T> => {
-  // Check if there's already a pending request for this key
   const pending = pendingRequests.get(key);
-  if (pending) {
-    return pending;
-  }
+  if (pending) return pending;
 
-  // Create new request and store it
   const promise = requestFn().finally(() => {
     pendingRequests.delete(key);
   });
-  
   pendingRequests.set(key, promise);
   return promise;
 };
 
 export const clearCache = () => {
-  cache.clear();
-  lastCacheClear = Date.now(); // Mark cache clear time
+  // Mark stale but keep data in map for instant SWR display
+  cacheInvalidatedAt = Date.now();
 };
 
 // Force clear specific cache key
 export const clearCacheKey = (key: string) => {
   cache.delete(key);
-  lastCacheClear = Date.now();
 };
 
 export const playerService = {
@@ -225,12 +220,41 @@ export const resultsService = {
     }
     return deduplicateRequest(cacheKey, async () => {
       const [teams, players] = await Promise.all([
-        teamService.getAllTeams(false), // Don't double-cache
-        playerService.getAllPlayers(false)
+        teamService.getAllTeams(useCache),
+        playerService.getAllPlayers(useCache)
       ]);
       const data = { teams, players };
       setCache(cacheKey, data);
       return data;
+    });
+  },
+};
+
+// Admin service with caching
+export const adminService = {
+  getStats: async (useCache = true) => {
+    const cacheKey = 'admin:stats';
+    if (useCache) {
+      const cached = getCached(cacheKey, 60000);
+      if (cached) return cached;
+    }
+    return deduplicateRequest(cacheKey, async () => {
+      const response = await api.get('/admin/stats');
+      setCache(cacheKey, response.data.data);
+      return response.data.data;
+    });
+  },
+
+  getAuctioneers: async (useCache = true) => {
+    const cacheKey = 'admin:auctioneers';
+    if (useCache) {
+      const cached = getCached(cacheKey, 60000);
+      if (cached) return cached;
+    }
+    return deduplicateRequest(cacheKey, async () => {
+      const response = await api.get('/admin/auctioneers');
+      setCache(cacheKey, response.data.data);
+      return response.data.data;
     });
   },
 };

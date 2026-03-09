@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import AuctioneerDetailModal from '../components/AuctioneerDetailModal';
+import { adminService, getStaleCached } from '../services/api';
 
 interface Auctioneer {
   _id: string;
@@ -24,8 +25,8 @@ interface Auctioneer {
 
 const AuctioneersPage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
-  const [auctioneers, setAuctioneers] = useState<Auctioneer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [auctioneers, setAuctioneers] = useState<Auctioneer[]>(() => getStaleCached('admin:auctioneers') || []);
+  const [loading, setLoading] = useState(() => !getStaleCached('admin:auctioneers'));
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'expired'>('all');
   const [selectedAuctioneer, setSelectedAuctioneer] = useState<Auctioneer | null>(null);
@@ -41,18 +42,15 @@ const AuctioneersPage: React.FC = () => {
 
   const fetchAuctioneers = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/admin/auctioneers`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setAuctioneers(response.data.data);
+      const data = await adminService.getAuctioneers();
+      setAuctioneers(data);
     } catch (error) {
       console.error('Failed to fetch auctioneers:', error);
       toast.error('Failed to load users');
     } finally {
       setLoading(false);
     }
-  }, [API_URL]);
+  }, []);
 
   useEffect(() => {
     fetchAuctioneers();

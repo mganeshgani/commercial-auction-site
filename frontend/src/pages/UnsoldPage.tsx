@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Player, Team } from '../types';
 import confetti from 'canvas-confetti';
 import { useAuth } from '../contexts/AuthContext';
-import { playerService, teamService, clearCache } from '../services/api';
+import { playerService, teamService, clearCache, getStaleCached } from '../services/api';
 import { initializeSocket } from '../services/socket';
 import UnsoldPlayerCard from '../components/unsold/UnsoldPlayerCard';
 
@@ -10,9 +10,9 @@ const CELEBRATION_THROTTLE_MS = 3000;
 
 const UnsoldPage: React.FC = () => {
   const { isAuctioneer } = useAuth();
-  const [unsoldPlayers, setUnsoldPlayers] = useState<Player[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [unsoldPlayers, setUnsoldPlayers] = useState<Player[]>(() => getStaleCached('players:unsold') || []);
+  const [teams, setTeams] = useState<Team[]>(() => getStaleCached('teams:all') || []);
+  const [loading, setLoading] = useState(() => !getStaleCached('players:unsold'));
   const [showModal, setShowModal] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [soldAmount, setSoldAmount] = useState<number>(0);

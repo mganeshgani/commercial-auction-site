@@ -2,14 +2,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { Team } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { teamService, clearCache } from '../services/api';
+import { teamService, clearCache, getStaleCached } from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 import ConfirmModal from '../components/ConfirmModal';
 
 const TeamsPage: React.FC = () => {
   const { isAuctioneer, user } = useAuth();
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [teams, setTeams] = useState<Team[]>(() => getStaleCached('teams:all') || []);
+  const [loading, setLoading] = useState(() => !getStaleCached('teams:all'));
   const [showAddModal, setShowAddModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -27,9 +27,8 @@ const TeamsPage: React.FC = () => {
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
   const fetchTeams = useCallback(async (bypassCache = false) => {
-    setLoading(true);
     try {
-      const data = await teamService.getAllTeams(!bypassCache); // Use cache unless bypassing
+      const data = await teamService.getAllTeams(!bypassCache);
       setTeams(data);
     } catch (error) {
       console.error('Error fetching teams:', error);
