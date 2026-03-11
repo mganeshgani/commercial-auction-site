@@ -20,6 +20,8 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   process.env.FRONTEND_URL, // Production frontend URL from environment
+  'https://sportsauction.me',
+  'https://www.sportsauction.me',
   'https://neoauction.vercel.app',
   'https://sports-auction.vercel.app',
   'https://sports-auction-oc52.vercel.app',
@@ -269,6 +271,11 @@ mongoose.connection.on('reconnected', () => {
 
 // Make io accessible to routes
 app.set('io', io);
+
+// Serve uploads folder in development (in production, Nginx serves these)
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+}
 
 // Import Routes
 const playerRoutes = require('./routes/player.routes');

@@ -144,7 +144,7 @@ const PlayerRegistrationPage: React.FC = () => {
       reader.onloadend = () => setPhotoPreview(reader.result as string);
       reader.readAsDataURL(file);
 
-      // Eagerly upload to Cloudinary
+      // Eagerly upload to server
       const uploadData = new FormData();
       uploadData.append('photo', file);
 

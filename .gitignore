@@ -13,11 +13,8 @@ frontend/build/
 frontend/dist/
 backend/dist/
 
-# Uploads (except player photos)
-backend/uploads/*
-!backend/uploads/player-photos/
-backend/uploads/player-photos/*
-!backend/uploads/player-photos/.gitkeep
+# Uploads (local dev storage)
+backend/uploads/
 
 # Logs
 *.log

@@ -1,5 +1,5 @@
 const AppConfig = require('../models/appConfig.model');
-const cloudinary = require('../config/cloudinary');
+const { saveAppLogo } = require('../utils/imageUpload');
 
 // @desc    Get app configuration for logged-in auctioneer
 // @route   GET /api/config
@@ -60,26 +60,8 @@ exports.updateConfig = async (req, res) => {
     // Handle logo upload if file is present
     if (req.file) {
       try {
-        const result = await new Promise((resolve, reject) => {
-          const uploadStream = cloudinary.uploader.upload_stream(
-            {
-              folder: 'app-logos',
-              public_id: `logo_${req.user._id}_${Date.now()}`,
-              resource_type: 'image',
-              transformation: [
-                { width: 200, height: 200, crop: 'limit' },
-                { quality: 'auto:good' },
-                { fetch_format: 'auto' }
-              ]
-            },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result);
-            }
-          );
-          uploadStream.end(req.file.buffer);
-        });
-        config.branding.logoUrl = result.secure_url;
+        const logoUrl = await saveAppLogo(req.file.buffer);
+        config.branding.logoUrl = logoUrl;
       } catch (uploadError) {
         console.error('Error uploading logo:', uploadError);
         return res.status(500).json({
